@@ -70,6 +70,11 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 
 #### Model training and training platforms
 
+<!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, 
+and which optional "difficulty" points you are attempting. -->
+
+#### Model serving and monitoring platforms
+
 **Unit 6: Model Serving**
 
 Our serving architecture implements a tiered approach to balance performance and cost. For primary online inference, we deploy quantized models via Ray Serve on GPU nodes, optimized for low-latency predictions. A CPU-based FastAPI fallback handles batch processing using ONNX-optimized models, while edge devices leverage further compressed models for offline scenarios. The system incorporates Redis caching and Nginx load balancing to improve scalability, aligning with Unit 6's focus on model quantization and system-level optimizations. This multi-platform strategy ensures we meet varying latency requirements while maintaining cost efficiency across deployment scenarios.
@@ -77,12 +82,6 @@ Our serving architecture implements a tiered approach to balance performance and
 **Unit 7: Evaluation & Monitoring**
 
 We establish a comprehensive evaluation pipeline beginning with offline tests for accuracy, bias detection, and failure mode analysis. After passing staging load tests, canary deployments use synthetic user profiles to validate real-world performance before full production rollout. Continuous monitoring tracks data drift and model degradation, with explicit/implicit user feedback feeding a retraining loop. This phased approach implements Unit 7's core requirements while addressing difficulty points through automated drift detection and production data recycling for model updates.
-
-<!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements, 
-and which optional "difficulty" points you are attempting. -->
-
-#### Model serving and monitoring platforms
-
 
 <!-- Make sure to clarify how you will satisfy the Unit 6 and Unit 7 requirements, 
 and which optional "difficulty" points you are attempting. -->
