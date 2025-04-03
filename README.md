@@ -4,9 +4,9 @@
 Discuss: Value proposition: Your will propose a machine learning system that can be
 used in an existing business or service. (You should not propose a system in which
 a new business or service would be developed around the machine learning system.)
-Describe the value proposition for the machine learning system. What’s the (non-ML)
+Describe the value proposition for the machine learning system. What's the (non-ML)
 status quo used in the business or service? What business metric are you going to be
-judged on? (Note that the “service” does not have to be for general users; you can
+judged on? (Note that the "service" does not have to be for general users; you can
 propose a system for a science problem, for example.)
 -->
 
@@ -21,10 +21,10 @@ link to their contributions in all repos here. -->
 | Name             | Responsible for | Link to their commits in this repo |
 | ---------------- | --------------- | ---------------------------------- |
 | All team members |                 |                                    |
-| Maneesh          |                 |                                    |
-| Ritesh Ojha      |                 |                                    |
-| Russel Sy        |                 |                                    |
-| Srushti Shah     |                 |                                    |
+| Maneesh          |  Units -8       |                                    |
+| Ritesh Ojha      |  Units -3       |                                    |
+| Russel Sy        |  Units - 4,5    |                                    |
+| Srushti Shah     |  Units - 6,7    |                                    |
 
 ### System diagram
 
@@ -66,8 +66,52 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 
 #### Model training and training platforms
 
-<!-- Make sure to clarify how you will satisfy the Unit 4 and Unit 5 requirements,
-and which optional "difficulty" points you are attempting. -->
+Our training infrastructure implements the requirements from Units 4 and 5:
+
+**Unit 4 Requirements:**
+
+1. **Train and Re-train**:
+
+   - Primary training: Alternating Least Squares (ALS) for collaborative filtering
+   - Deep Neural Network (DCN) for feature-based recommendations
+   - Continuous retraining pipeline using production feedback data
+   - Model artifacts stored in versioned storage for reproducibility
+
+2. **Modeling Choices**:
+   - ALS for sparse user-restaurant interaction matrix
+   - DCN for handling complex feature interactions between user and restaurant profiles
+   - Multi-GPU training support for both models using Ray
+   - Hybrid recommendation approach combining both models' predictions
+
+**Unit 5 Requirements:**
+
+1. **Experiment Tracking**:
+
+   - MLflow deployment on Chameleon for experiment management
+   - Tracking of model metrics, hyperparameters, and artifacts
+   - Automated logging of training metrics and model performance
+   - Version control of model artifacts and configurations
+
+2. **Training Job Scheduling**:
+   - Ray cluster deployment for distributed training
+   - GPU resource management (NVIDIA and AMD)
+   - Automated job scheduling and resource allocation
+   - Integration with continuous training pipeline
+
+**Unit 5 Difficulty Points:**
+
+1. **Ray Train Implementation**:
+
+   - Fault-tolerant training with automatic checkpointing
+   - Remote artifact storage integration
+   - Distributed training across GPU nodes
+   - Automatic failover and recovery
+
+2. **Hyperparameter Tuning**:
+   - Ray Tune integration for automated optimization
+   - Population-based training for efficient search
+   - Multi-objective optimization for latency-accuracy trade-offs
+   - Parallel trial execution across available GPUs
 
 #### Model serving and monitoring platforms
 
