@@ -18,13 +18,17 @@ Then, each row after that is: name of contributor, their role, and in the third 
 you will link to their contributions. If your project involves multiple repos, you will
 link to their contributions in all repos here. -->
 
+## Team Contributions
+
 | Name             | Responsible for | Link to their commits in this repo |
 | ---------------- | --------------- | ---------------------------------- |
 | All team members |                 |                                    |
-| Maneesh          |  Units -8       |                                    |
-| Ritesh Ojha      |  Units -3       |                                    |
-| Russel Sy        |  Units - 4,5    |                                    |
-| Srushti Shah     |  Units - 6,7    |                                    |
+| Maneesh          | Units - 8       | [Commits](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=Maneeshk11) |
+| Ritesh Ojha      | Units - 3       | [Commits](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=ritzzi23) |
+| Russel Sy        | Units - 4,5     | [Commits](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=russelgabriel) |
+| Srushti Shah     | Units - 6,7     | [Commits](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=srush-shah) |
+
+
 
 ### System diagram
 
