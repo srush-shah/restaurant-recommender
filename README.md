@@ -18,15 +18,20 @@ Then, each row after that is: name of contributor, their role, and in the third 
 you will link to their contributions. If your project involves multiple repos, you will
 link to their contributions in all repos here. -->
 
+## Team Contributions
+
 | Name             | Responsible for | Link to their commits in this repo |
 | ---------------- | --------------- | ---------------------------------- |
 | All team members |                 |                                    |
-| Maneesh          | Units -8        |                                    |
-| Ritesh Ojha      | Units -3        |                                    |
-| Russel Sy        | Units - 4,5     |                                    |
-| Srushti Shah     | Units - 6,7     |                                    |
+
+| Maneesh          | Units - 8       | [Commits](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=Maneeshk11) |
+| Ritesh Ojha      | Units - 3       | [Commits](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=ritzzi23) |
+| Russel Sy        | Units - 4,5     | [Commits](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=russelgabriel) |
+| Srushti Shah     | Units - 6,7     | [Commits](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=srush-shah) |
 
 ### System diagram
+
+<img src="./assets/architecture_v1.png"/>
 
 <!-- Overall digram of system. Doesn't need polish, does need to show all the pieces.
 Must include: all the hardware, all the containers/software platforms, all the models,
@@ -40,23 +45,56 @@ conditions under which it may be used. -->
 
 |              | How it was created | Conditions of use |
 | ------------ | ------------------ | ----------------- |
-| Data set 1   |                    |                   |
-| Data set 2   |                    |                   |
-| Base model 1 |                    |                   |
-| etc          |                    |                   |
+| Yelp Open Dataset  | The Yelp Open Dataset is a subset of Yelp data that is intended for educational use. It provides real-world data related to businesses including reviews, photos, check-ins, and attributes like hours, parking availability, and ambience. | [See detailed ToS here](https://github.com/srush-shah/restaurant-recommender/tree/main/assets/yelp_tos.pdf)|
+| SBERT Transformer   | Hugging Face used the pretrained microsoft/mpnet-base model and fine-tuned in on a 1B sentence pairs dataset. They used a contrastive learning objective: given a sentence from the pair, the model should predict which out of a set of randomly sampled other sentences, was actually paired with it in their dataset. | [Hugging Face ToS](https://huggingface.co/terms-of-service) |
 
 ### Summary of infrastructure requirements
 
-<!-- Itemize all your anticipated requirements: What (`m1.medium` VM, `gpu_mi100`),
-how much/when, justification. Include compute, floating IPs, persistent storage.
-The table below shows an example, it is not a recommendation. -->
+## Summary of Infrastructure Requirements (Chameleon)
 
-| Requirement     | How many/when                                     | Justification |
-| --------------- | ------------------------------------------------- | ------------- |
-| `m1.medium` VMs | 3 for entire project duration                     | ...           |
-| `gpu_mi100`     | 4 hour block twice a week                         |               |
-| Floating IPs    | 1 for entire project duration, 1 for sporadic use |               |
-| etc             |                                                   |               |
+| Requirement                | How many / When                                  | Justification                                                                                   |
+|---------------------------|--------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| **m1.medium VMs**         | 3 for entire project duration                    | Used for ETL jobs, FastAPI server, Redis, and Ray head node                                    |
+| **gpu_a100 or gpu_mi100** | 4-hour block twice a week                        | Heavy model training (DCN, ALS, SBERT embedding) on large Yelp data                            |
+| **Floating IPs**          | 1 static IP for entire project duration, 1 on-demand | One for public-facing FastAPI; additional one for staging/monitoring access during canary tests |
+| **Block Storage (100GB)** | Persistent volume throughout project             | Store processed Yelp data, user/restaurant embeddings, cached features                         |
+| **Object Storage (S3-like)** | Persistent throughout project                 | Store MLflow artifacts, model checkpoints, and logs                                            |
+| **Docker Registry Access**| Continuous                                       | For storing/retrieving containerized services (ETL, training, serving)                         |
+| **gpu_small VMs (optional)** | 2 hours weekly (as-needed backup to big GPU) | Light GPU experimentation or embedding refreshes if gpu_mi100 unavailable                     |
+| **Kubernetes Cluster (bare-metal)** | 1 cluster with 3 nodes (2 CPU + 1 GPU)     | To deploy microservices (ETL API, model training jobs, model serving) and support canary deployments |
+| **Internal Network**      | Throughout project                               | For communication between Redis, model server, dashboard, MLflow tracker, etc.                |
+
+
+### Rough break down 
+
+
+## Component-to-Node Mapping
+
+| Component                    | Needs?             | Recommended Node Type                                      |
+|-----------------------------|--------------------|-------------------------------------------------------------|
+| **ETL (SBERT embeddings)**  | CPU (GPU optional) | m1.medium (or gpu_small if SBERT is GPU-accelerated)       |
+| **Model Training (ALS/DCN)**| GPU-intensive      | gpu_mi100 or gpu_a100                                       |
+| **Model Serving (FastAPI + RayServe)** | CPU         | m1.medium                                                   |
+| **Redis (caching)**         | CPU                | m1.small or m1.medium                                       |
+| **MLflow (tracking + registry)** | CPU          | m1.small                                                    |
+| **Dashboard (Grafana/Prometheus)** | CPU         | m1.small                                                    |
+| **Canary / Staging Env**    | CPU                | m1.medium (on-demand/scheduled)                             |
+| **Load Testing (Optional)** | CPU                | Ephemeral VM (as-needed only)                               |
+
+
+## VM Breakdown
+
+| VM Purpose              | VM Type     | Count              | Notes                                                                 |
+|-------------------------|-------------|---------------------|-----------------------------------------------------------------------|
+| **Ray Cluster Head Node** | m1.medium   | 1                   | Controls Ray tasks, does some orchestration                          |
+| **Ray Worker Node (CPU)** | m1.medium   | 1–2                 | For ETL, inference, lightweight model serving                        |
+| **GPU Training Node**   | gpu_mi100   | On demand (2x/week) | For SBERT/DCN/ALS training (can be preemptible)                      |
+| **Redis & MLflow**      | m1.small    | 1                   | Can be co-hosted if needed                                           |
+| **Canary/Testing Node** | m1.medium   | 1 (as needed)       | Used only during staged testing                                      |
+| **Dashboard Node (optional)** | m1.small | 1                   | Optional unless you're monitoring live stats                         |
+
+Note: It is subject to change as we implement.
+
 
 ### Detailed design plan
 
@@ -65,8 +103,6 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 (5) include specific numbers. -->
 
 #### Model training and training platforms
-
-Our training infrastructure implements the requirements from Units 4 and 5:
 
 **Unit 4 Requirements:**
 
