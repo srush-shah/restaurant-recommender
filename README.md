@@ -28,7 +28,7 @@ link to their contributions in all repos here. -->
 
 ### System diagram
 
-<img src="./images/architecture_v1.png"/>
+<img src="./assets/architecture_v1.png"/>
 
 <!-- Overall digram of system. Doesn't need polish, does need to show all the pieces.
 Must include: all the hardware, all the containers/software platforms, all the models,
