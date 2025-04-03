@@ -47,16 +47,20 @@ conditions under which it may be used. -->
 
 ### Summary of infrastructure requirements
 
-<!-- Itemize all your anticipated requirements: What (`m1.medium` VM, `gpu_mi100`),
-how much/when, justification. Include compute, floating IPs, persistent storage.
-The table below shows an example, it is not a recommendation. -->
+## Summary of Infrastructure Requirements (Chameleon)
 
-| Requirement     | How many/when                                     | Justification |
-| --------------- | ------------------------------------------------- | ------------- |
-| `m1.medium` VMs | 3 for entire project duration                     | ...           |
-| `gpu_mi100`     | 4 hour block twice a week                         |               |
-| Floating IPs    | 1 for entire project duration, 1 for sporadic use |               |
-| etc             |                                                   |               |
+| Requirement                | How many / When                                  | Justification                                                                                   |
+|---------------------------|--------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| **m1.medium VMs**         | 3 for entire project duration                    | Used for ETL jobs, FastAPI server, Redis, and Ray head node                                    |
+| **gpu_a100 or gpu_mi100** | 4-hour block twice a week                        | Heavy model training (DCN, ALS, SBERT embedding) on large Yelp data                            |
+| **Floating IPs**          | 1 static IP for entire project duration, 1 on-demand | One for public-facing FastAPI; additional one for staging/monitoring access during canary tests |
+| **Block Storage (100GB)** | Persistent volume throughout project             | Store processed Yelp data, user/restaurant embeddings, cached features                         |
+| **Object Storage (S3-like)** | Persistent throughout project                 | Store MLflow artifacts, model checkpoints, and logs                                            |
+| **Docker Registry Access**| Continuous                                       | For storing/retrieving containerized services (ETL, training, serving)                         |
+| **gpu_small VMs (optional)** | 2 hours weekly (as-needed backup to big GPU) | Light GPU experimentation or embedding refreshes if gpu_mi100 unavailable                     |
+| **Kubernetes Cluster (bare-metal)** | 1 cluster with 3 nodes (2 CPU + 1 GPU)     | To deploy microservices (ETL API, model training jobs, model serving) and support canary deployments |
+| **Internal Network**      | Throughout project                               | For communication between Redis, model server, dashboard, MLflow tracker, etc.                |
+
 
 ### Detailed design plan
 
