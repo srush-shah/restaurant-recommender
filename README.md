@@ -21,10 +21,10 @@ link to their contributions in all repos here. -->
 | Name             | Responsible for | Link to their commits in this repo |
 | ---------------- | --------------- | ---------------------------------- |
 | All team members |                 |                                    |
-| Maneesh          |                 |                                    |
-| Ritesh Ojha      |                 |                                    |
-| Russel Sy        |                 |                                    |
-| Srushti Shah     |                 |                                    |
+| Maneesh          |  Units -8       |                                    |
+| Ritesh Ojha      |  Units -3       |                                    |
+| Russel Sy        |  Units - 4,5    |                                    |
+| Srushti Shah     |  Units - 6,7    |                                    |
 
 ### System diagram
 
