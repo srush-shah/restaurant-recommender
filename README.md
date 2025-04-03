@@ -21,10 +21,10 @@ link to their contributions in all repos here. -->
 | Name             | Responsible for | Link to their commits in this repo |
 | ---------------- | --------------- | ---------------------------------- |
 | All team members |                 |                                    |
-| Maneesh          |  Units -8       |                                    |
-| Ritesh Ojha      |  Units -3       |                                    |
-| Russel Sy        |  Units - 4,5    |                                    |
-| Srushti Shah     |  Units - 6,7    |                                    |
+| Maneesh          | Units -8        |                                    |
+| Ritesh Ojha      | Units -3        |                                    |
+| Russel Sy        | Units - 4,5     |                                    |
+| Srushti Shah     | Units - 6,7     |                                    |
 
 ### System diagram
 
@@ -120,21 +120,25 @@ Our training infrastructure implements the requirements from Units 4 and 5:
 Our model serving pipeline implements all required components from Unit 6:
 
 1. **Serving from an API Endpoint**:
+
    - Model is deployed using **FastAPI** and **Ray Serve** for efficient, scalable inference.
    - Optimized API endpoints for real-time and batch recommendations.
 
 2. **Identifying Deployment Requirements**:
+
    - **Model Size Considerations**: Ensure model fits within serving infrastructure constraints.
    - **Throughput Optimization**: Designed for high-volume batch inference.
    - **Latency Constraints**: Ensuring minimal response time for real-time recommendations.
    - **Concurrency Management**: Handling multiple requests efficiently in a cloud environment.
 
 3. **Model Optimizations**:
+
    - Graph optimizations for execution efficiency.
    - Quantization and reduced precision for performance improvements.
    - Hardware-optimized operators for both **CPU** and **GPU** deployments.
 
 4. **System Optimizations**:
+
    - Load balancing for efficient request distribution.
    - Optimized resource allocation to meet scaling demands.
 
@@ -154,6 +158,7 @@ This serving strategy ensures fast, reliable, and scalable model deployment for 
 Our evaluation and monitoring pipeline implements all required components from Unit 7:
 
 1. **Offline Evaluation**:
+
    - **Automated Model Evaluation** post-training, with results logged in **MLflow**.
    - **Comprehensive Testing** covering:
      - Standard and domain-specific test cases.
@@ -163,19 +168,23 @@ Our evaluation and monitoring pipeline implements all required components from U
    - **Model Registry Automation** to track performance over iterations.
 
 2. **Load Testing in Staging**:
+
    - Performance benchmarking before full deployment.
    - Stress testing model under varying loads.
 
 3. **Online Evaluation in Canary Environment**:
+
    - Deploying in a controlled test environment.
    - Simulated user interactions for real-world performance validation.
    - Behavioral analysis to refine recommendation strategies.
 
 4. **Closing the Feedback Loop**:
+
    - **User Feedback Collection** through interactions, ratings, and labeled annotations.
    - **Production Data Storage** for continuous model improvement and retraining.
 
 5. **Business-Specific Evaluation**:
+
    - Defining success metrics aligned with business goals.
    - Tracking real-world impact of recommendations.
 
@@ -193,7 +202,7 @@ and which optional "difficulty" points you are attempting. -->
 
 #### Data pipeline
 
-Our data pipeline implements all required components from Unit 8:
+**Unit 8:**
 
 1. **Persistent Storage**:
 
@@ -210,7 +219,6 @@ Our data pipeline implements all required components from Unit 8:
      - Restaurant business data: attributes, categories, locations
      - User data: ratings, reviews, user metadata
    - Data repository: Distributed storage system for efficient access
-   - Version control for data using DVC (Data Version Control)
    - Regular snapshots for reproducibility
 
 3. **ETL Pipeline**:
@@ -224,8 +232,8 @@ Our data pipeline implements all required components from Unit 8:
      - Restaurant profile creation (business attributes, embeddings)
      - Data validation and quality checks
    - Loading:
-     - Structured storage for model training
-     - Feature store for online serving
+     - Structured storage (on Chameleon) for model training
+     - Feature store (on Chameleon) for online serving
 
 4. **Online Data Pipeline**:
 
@@ -233,23 +241,15 @@ Our data pipeline implements all required components from Unit 8:
      - User interaction streaming pipeline
      - Real-time feature computation after storing data on redis(or an alternative for fast access)
    - Data Simulation:
-     - Synthetic user interaction generator
-     - Configurable rate and pattern simulation
-     - Realistic user behavior patterns including:
-       - Restaurant browsing patterns
-       - Rating frequencies
-       - Review text generation
-       - Time-of-day variations
+     - Synthetic user interaction generator (script) based on user patterns
 
 5. **Monitoring and Quality**:
    - Interactive dashboard for data pipeline metrics
    - Automated data quality validation
 
-This comprehensive data infrastructure ensures reliable data management, efficient processing, and robust monitoring capabilities, satisfying all Unit 8 requirements while implementing additional features for improved reliability and scalability.
-
 #### Continuous X
 
-Our Continuous X pipeline implements several automated workflows as shown in the system diagram:
+Implementations of Continuous X automated workflows for our use-case:
 
 1. **Continuous Integration/Deployment**:
 
@@ -269,4 +269,4 @@ Our Continuous X pipeline implements several automated workflows as shown in the
    - Automated model retraining based on performance thresholds
    - A/B testing between new and old system versions
 
-This satisfies Unit 3 requirements through automated testing, deployment, and monitoring pipelines. We address additional difficulty points through implementation of canary testing and automated model retraining based on drift detection.
+This satisfies Unit 3 requirements through automated testing, deployment, and monitoring pipelines.
