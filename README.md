@@ -101,8 +101,6 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 
 #### Model training and training platforms
 
-Our training infrastructure implements the requirements from Units 4 and 5:
-
 **Unit 4 Requirements:**
 
 1. **Train and Re-train**:
