@@ -231,8 +231,7 @@ Our data pipeline implements all required components from Unit 8:
 
    - Real-time data processing:
      - User interaction streaming pipeline
-     - Real-time feature computation
-     - Redis caching for fast access
+     - Real-time feature computation after storing data on redis(or an alternative for fast access)
    - Data Simulation:
      - Synthetic user interaction generator
      - Configurable rate and pattern simulation
@@ -245,8 +244,6 @@ Our data pipeline implements all required components from Unit 8:
 5. **Monitoring and Quality**:
    - Interactive dashboard for data pipeline metrics
    - Automated data quality validation
-   - Data drift detection
-   - Pipeline performance monitoring
 
 This comprehensive data infrastructure ensures reliable data management, efficient processing, and robust monitoring capabilities, satisfying all Unit 8 requirements while implementing additional features for improved reliability and scalability.
 
