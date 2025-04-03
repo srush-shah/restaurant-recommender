@@ -62,6 +62,37 @@ conditions under which it may be used. -->
 | **Internal Network**      | Throughout project                               | For communication between Redis, model server, dashboard, MLflow tracker, etc.                |
 
 
+### Rough break down 
+
+
+## Component-to-Node Mapping
+
+| Component                    | Needs?             | Recommended Node Type                                      |
+|-----------------------------|--------------------|-------------------------------------------------------------|
+| **ETL (SBERT embeddings)**  | CPU (GPU optional) | m1.medium (or gpu_small if SBERT is GPU-accelerated)       |
+| **Model Training (ALS/DCN)**| GPU-intensive      | gpu_mi100 or gpu_a100                                       |
+| **Model Serving (FastAPI + RayServe)** | CPU         | m1.medium                                                   |
+| **Redis (caching)**         | CPU                | m1.small or m1.medium                                       |
+| **MLflow (tracking + registry)** | CPU          | m1.small                                                    |
+| **Dashboard (Grafana/Prometheus)** | CPU         | m1.small                                                    |
+| **Canary / Staging Env**    | CPU                | m1.medium (on-demand/scheduled)                             |
+| **Load Testing (Optional)** | CPU                | Ephemeral VM (as-needed only)                               |
+
+
+## VM Breakdown
+
+| VM Purpose              | VM Type     | Count              | Notes                                                                 |
+|-------------------------|-------------|---------------------|-----------------------------------------------------------------------|
+| **Ray Cluster Head Node** | m1.medium   | 1                   | Controls Ray tasks, does some orchestration                          |
+| **Ray Worker Node (CPU)** | m1.medium   | 1–2                 | For ETL, inference, lightweight model serving                        |
+| **GPU Training Node**   | gpu_mi100   | On demand (2x/week) | For SBERT/DCN/ALS training (can be preemptible)                      |
+| **Redis & MLflow**      | m1.small    | 1                   | Can be co-hosted if needed                                           |
+| **Canary/Testing Node** | m1.medium   | 1 (as needed)       | Used only during staged testing                                      |
+| **Dashboard Node (optional)** | m1.small | 1                   | Optional unless you're monitoring live stats                         |
+
+Note: It is subject to change as we implement.
+
+
 ### Detailed design plan
 
 <!-- In each section, you should describe (1) your strategy, (2) the relevant parts of the
