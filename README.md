@@ -10,6 +10,8 @@ judged on? (Note that the "service" does not have to be for general users; you c
 propose a system for a science problem, for example.)
 -->
 
+The current status quo for restaurant recommendations relies heavily on content based filtering methods. Creating more personalized recommendations removes the hassle of trying to find a place to eat and reduces time spent endlessly scrolling through food apps like Yelp, Google Maps, and Beli. We propose our hybrid model recommendation system to these companies in order to drive up user utility with personalized recommendations. With more effective recommendations, we expect the volume of user reviews to increase, as well as smaller restaurants being able to compete more with established and popular restaurants.
+
 ### Contributors
 
 <!-- Table of contributors and their roles.
@@ -102,16 +104,19 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 
 1. **Train and Re-train**:
 
-   - Primary training: Alternating Least Squares (ALS) for collaborative filtering
-   - Deep Neural Network (DCN) for feature-based recommendations
+   - Candidate generation
+       - Train an Alternating Least Squares (ALS) model on a user-restaurant interaction matrix
+       - Retrain as new users with enough ratings get added to the matrix, existing users give more ratings, new restaurants get new ratings
+   - Ranking the candidates
+       - Train a Deep and Cross Network (DCN) on user and restaurants features to capture the interaction effects between the features and generate more accurate ratings.
+       - Can play with penalties to reward diversity and serendipity in recommendations
    - Continuous retraining pipeline using production feedback data
    - Model artifacts stored in versioned storage for reproducibility
 
 2. **Modeling Choices**:
-   - ALS for sparse user-restaurant interaction matrix
-   - DCN for handling complex feature interactions between user and restaurant profiles
-   - Multi-GPU training support for both models using Ray
-   - Hybrid recommendation approach combining both models' predictions
+   - ALS for sparse user-restaurant interaction matrix for candidate generation. This reduces the number of potential restaurant recommendations from hundreds of thousands to just hundreds.
+   - DCN for handling complex feature interactions between user and restaurant profiles to generate a more accurate ranking/order of recommendations.
+
 
 **Unit 5 Requirements:**
 
@@ -123,7 +128,7 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
    - Version control of model artifacts and configurations
 
 2. **Training Job Scheduling**:
-   - Ray cluster deployment for distributed training
+   - Ray cluster deployment for distributed training of DCN
    - GPU resource management (NVIDIA and AMD)
    - Automated job scheduling and resource allocation
    - Integration with continuous training pipeline
@@ -134,12 +139,11 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 
    - Fault-tolerant training with automatic checkpointing
    - Remote artifact storage integration
-   - Distributed training across GPU nodes
+   - Distributed training across GPU nodes for DCN
    - Automatic failover and recovery
 
 2. **Hyperparameter Tuning**:
-   - Ray Tune integration for automated optimization
-   - Population-based training for efficient search
+   - Ray Tune integration for automated optimization of both models
    - Multi-objective optimization for latency-accuracy trade-offs
    - Parallel trial execution across available GPUs
 
