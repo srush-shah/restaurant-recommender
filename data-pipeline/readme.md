@@ -21,5 +21,5 @@ scp -i ~/.ssh/id_rsa_chameleon ~/LOCAL_PATH/yelp_dataset.tar cc@129.114.26.67:~/
 3. Upload Raw Data to Object Store:
 
 ```bash
-docker compose -f ~/group23/docker/docker-compose-raw-data-yelp.yaml run extract-and-upload-yelp-data
+docker compose -f ~/group23/docker/docker-compose-raw-data.yaml run extract-and-upload-yelp-data
 ```

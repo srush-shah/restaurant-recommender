@@ -1,0 +1,30 @@
+name: yelp-etl
+
+services:
+  load-yelp-training-data:
+    container_name: etl_load_yelp_data
+    image: rclone/rclone:latest
+    volumes:
+      - ~/group23/dataset/training:/data:ro
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
+          exit 1
+        fi
+
+        echo "Uploading contents of 'training' folder into object store at 'training/'..."
+        rclone copy /data/ chi_tacc:$RCLONE_CONTAINER/training \
+          --progress \
+          --transfers=32 \
+          --checkers=16 \
+          --multi-thread-streams=4 \
+          --fast-list
+
+        echo "Listing contents of chi_tacc:$RCLONE_CONTAINER/training:"
+        rclone ls chi_tacc:$RCLONE_CONTAINER/training
