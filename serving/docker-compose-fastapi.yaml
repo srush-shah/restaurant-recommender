@@ -3,7 +3,7 @@ version: "3.8"
 services:
   fastapi_server:
     build:
-      context: ~/restaurant-recommender/serving          # path to your project root with Dockerfile
+      context: /home/cc/restaurant-recommender          # path to your project root with Dockerfile
       dockerfile: Dockerfile
     container_name: fastapi_server
     deploy:
@@ -13,6 +13,9 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    volumes:
+      - /mnt/object/user_latent_vector:/mnt/object/user_latent_vector:ro  # mount user embeddings
+      - /mnt/object/item_latent_vector:/mnt/object/item_latent_vector:ro  # mount item embeddings
     ports:
       - "8000:8000"  # HTTP port for FastAPI
 
