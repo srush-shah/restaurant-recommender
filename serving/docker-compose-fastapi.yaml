@@ -1,0 +1,29 @@
+name: fastapi_test
+version: "3.8"
+services:
+  fastapi_server:
+    build:
+      context: /home/cc/restaurant-recommender          # path to your project root with Dockerfile
+      dockerfile: Dockerfile
+    container_name: fastapi_server
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - /mnt/object:/mnt/object:ro  # mount entire object store
+    ports:
+      - "8000:8000"  # HTTP port for FastAPI
+
+  jupyter:
+    image: quay.io/jupyter/minimal-notebook:latest
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - /home/cc/restaurant-recommender:/home/jovyan/work   # mount your repo for notebooks/workspace
+    command: >
+      bash -c "pip install numpy && start-notebook.sh"

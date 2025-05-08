@@ -1,0 +1,25 @@
+# Loading Raw Yelp data
+
+## Steps:
+
+1. Transfer Yelp dataset to Chameleon Node:
+
+```bash
+scp -i ~/.ssh/id_rsa_chameleon ~/LOCAL_PATH/yelp_dataset.tar cc@129.114.26.67:~/group23/dataset/
+```
+
+2. Configure Environment:
+
+   - Set up Docker on the Chameleon node
+   - Configure rclone
+   - Set container ID:
+
+   ```bash
+   export RCLONE_CONTAINER=object-persist-project23
+   ```
+
+3. Upload Raw Data to Object Store:
+
+```bash
+docker compose -f ~/group23/docker/docker-compose-raw-data.yaml run extract-and-upload-yelp-data
+```

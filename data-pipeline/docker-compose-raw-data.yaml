@@ -1,0 +1,39 @@
+name: yelp-etl
+
+services:
+  extract-and-upload-yelp-data:
+    container_name: etl_extract_and_upload_yelp_data
+    image: rclone/rclone:latest
+    volumes:
+      - ~/group23/dataset:/input:ro # Mounts the folder with the .tar file
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
+          exit 1
+        fi
+
+        echo "Creating temp extraction directory..."
+        mkdir -p /tmp/yelp
+
+        echo "Extracting .tar file..."
+        tar -xf /input/yelp_dataset.tar -C /tmp/yelp
+
+        echo "Contents extracted:"
+        ls -lh /tmp/yelp
+
+        echo "Uploading extracted files to object store under 'raw/'..."
+        rclone copy /tmp/yelp chi_tacc:$RCLONE_CONTAINER/raw \
+          --progress \
+          --transfers=16 \
+          --checkers=8 \
+          --multi-thread-streams=4 \
+          --fast-list
+
+        echo "Upload complete. Contents in object store:"
+        rclone ls chi_tacc:$RCLONE_CONTAINER/raw
