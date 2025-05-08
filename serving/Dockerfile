@@ -13,10 +13,10 @@ COPY . .
 
 # Copy your transformer model checkpoint into the container
 # (ensure transformer_recommender.pth is in your project root)
-COPY transformer_recommender.pth /app/
+# COPY transformer_recommender.pth /app/
 
 # (Optional) Set default environment variables
-ENV MODEL_PATH=/app/transformer_recommender.pth
+# ENV MODEL_PATH=/app/transformer_recommender.pth
 
 # Expose the FastAPI port
 EXPOSE 8000
