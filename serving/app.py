@@ -21,7 +21,7 @@ def _load_user_embeddings():
             reader = csv.DictReader(csvfile)
             for row in reader:
                 try:
-                    uid = int(row['user_id'])
+                    uid = row['user_id']
                     feats = row['features']
                     vals = feats.strip().split(',')
                     emb = np.array([float(x) for x in vals], dtype=np.float32)
