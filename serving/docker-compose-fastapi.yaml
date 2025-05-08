@@ -14,8 +14,7 @@ services:
               count: all
               capabilities: [gpu]
     volumes:
-      - /mnt/object/user_latent_vector:/mnt/object/user_latent_vector:ro  # mount user embeddings
-      - /mnt/object/item_latent_vector:/mnt/object/item_latent_vector:ro  # mount item embeddings
+      - /mnt/object:/mnt/object:ro  # mount entire object store
     ports:
       - "8000:8000"  # HTTP port for FastAPI
 
