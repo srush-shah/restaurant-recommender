@@ -8,8 +8,8 @@ from typing import List
 
 # ─── CONFIGURATION ───────────────────────────────────────────────────────────
 # Directories where CSV embeddings are mounted
-USER_CSV_DIR = os.getenv("USER_CSV_DIR", "/mnt/object/user_latent_vector")
-ITEM_CSV_DIR = os.getenv("ITEM_CSV_DIR", "/mnt/object/item_latent_vector")
+USER_CSV_DIR = os.getenv("USER_CSV_DIR", "/mnt/object/user_latent_vectors")
+ITEM_CSV_DIR = os.getenv("ITEM_CSV_DIR", "/mnt/object/item_latent_vectors")
 
 # ─── LOAD EMBEDDINGS AT STARTUP ───────────────────────────────────────────────
 # Load user embeddings into memory
