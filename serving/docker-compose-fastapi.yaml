@@ -3,7 +3,7 @@ version: "3.8"
 services:
   fastapi_server:
     build:
-      context: /home/cc/restaurant-recommender/serving          # path to your project root with Dockerfile
+      context: ~/restaurant-recommender/serving          # path to your project root with Dockerfile
       dockerfile: Dockerfile
     container_name: fastapi_server
     deploy:
