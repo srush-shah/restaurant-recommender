@@ -3,7 +3,7 @@ version: "3.8"
 services:
   fastapi_server:
     build:
-      context: /home/cc/restaurant-recommender          # path to your project root with Dockerfile
+      context: /home/cc/restaurant-recommender/serving          # path to your project root with Dockerfile
       dockerfile: Dockerfile
     container_name: fastapi_server
     deploy:
@@ -13,6 +13,9 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    volumes:
+      - /mnt/object/user_latent_vectors:/app/data/user_latent_vectors:ro
+      - /mnt/object/item_latent_vectors:/app/data/item_latent_vectors:ro
     ports:
       - "8000:8000"  # HTTP port for FastAPI
 
@@ -23,6 +26,5 @@ services:
       - "8888:8888"
     volumes:
       - /home/cc/restaurant-recommender:/home/jovyan/work   # mount your repo for notebooks/workspace
-      - /mnt/object:/home/jovyan/data
     command: >
       bash -c "pip install numpy && start-notebook.sh"

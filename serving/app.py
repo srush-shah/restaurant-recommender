@@ -8,8 +8,8 @@ from typing import List
 
 # ─── CONFIGURATION ───────────────────────────────────────────────────────────
 # Directories where CSV embeddings are mounted
-USER_CSV_DIR = os.getenv("USER_CSV_DIR", "/home/jovyan/data/user_latent_vectors")
-ITEM_CSV_DIR = os.getenv("ITEM_CSV_DIR", "/home/jovyan/data/item_latent_vectors")
+USER_CSV_DIR = os.getenv("USER_CSV_DIR", "/app/data/user_latent_vectors")
+ITEM_CSV_DIR = os.getenv("ITEM_CSV_DIR", "/app/data/item_latent_vectors")
 
 # ─── LOAD EMBEDDINGS AT STARTUP ───────────────────────────────────────────────
 # Load user embeddings into memory
@@ -61,13 +61,13 @@ rest_embs = np.stack(rest_embs, axis=0)
 
 # ─── FASTAPI SETUP ────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="In-Memory RecSys API",
+    title="RecSys API",
     description="Service for recommending restaurants using precomputed embeddings",
     version="1.0.0"
 )
 
 class RecommendRequest(BaseModel):
-    user_id: int
+    user_id: str
     k: int = 10
 
 # ─── ENDPOINT (DEBUG) ──────────────────────────────────────────────────────────
