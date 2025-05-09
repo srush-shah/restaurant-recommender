@@ -13,8 +13,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    volumes:
-      - /mnt/object:/mnt/object:ro  # mount entire object store
     ports:
       - "8000:8000"  # HTTP port for FastAPI
 
@@ -25,5 +23,6 @@ services:
       - "8888:8888"
     volumes:
       - /home/cc/restaurant-recommender:/home/jovyan/work   # mount your repo for notebooks/workspace
+      - /mnt/object:/home/jovyan/data
     command: >
       bash -c "pip install numpy && start-notebook.sh"

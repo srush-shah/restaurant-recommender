@@ -8,8 +8,8 @@ from typing import List
 
 # ─── CONFIGURATION ───────────────────────────────────────────────────────────
 # Directories where CSV embeddings are mounted
-USER_CSV_DIR = os.getenv("USER_CSV_DIR", "/mnt/object/user_latent_vectors")
-ITEM_CSV_DIR = os.getenv("ITEM_CSV_DIR", "/mnt/object/item_latent_vectors")
+USER_CSV_DIR = os.getenv("USER_CSV_DIR", "/home/jovyan/data/user_latent_vectors")
+ITEM_CSV_DIR = os.getenv("ITEM_CSV_DIR", "/home/jovyan/data/item_latent_vectors")
 
 # ─── LOAD EMBEDDINGS AT STARTUP ───────────────────────────────────────────────
 # Load user embeddings into memory
@@ -50,6 +50,7 @@ def _load_item_embeddings():
 
 user_embeddings = _load_user_embeddings()
 item_embeddings = _load_item_embeddings()
+
 if not user_embeddings:
     raise RuntimeError(f"No user embeddings loaded from {USER_CSV_DIR}")
 if not item_embeddings:
