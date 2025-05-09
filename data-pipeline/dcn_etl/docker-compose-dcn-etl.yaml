@@ -1,0 +1,89 @@
+name: dcn-etl
+
+services:
+
+  extract:
+    image: rclone/rclone:latest
+    container_name: etl_extract
+    volumes:
+      - ./data:/staging           # where you want the files to land
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    entrypoint: /bin/sh
+    working_dir: /app
+    command:
+      - -c
+      - |
+        set -e
+
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
+          exit 1
+        fi
+
+        echo "Creating local staging dirs..."
+        mkdir -p /staging/raw \
+                 /staging/user_latent_vectors \
+                 /staging/item_latent_vectors
+
+        echo "Downloading raw Yelp files..."
+        rclone copy chi_tacc:"$RCLONE_CONTAINER/raw" \
+          /staging/raw \
+          --progress --transfers=16 --checkers=8 --fast-list
+
+        echo "Downloading user latent vectors..."
+        rclone copy chi_tacc:"$RCLONE_CONTAINER/user_latent_vectors" \
+          /staging/user_latent_vectors \
+          --progress --transfers=16 --checkers=8 --fast-list
+
+        echo "Downloading item latent vectors..."
+        rclone copy chi_tacc:"$RCLONE_CONTAINER/item_latent_vectors" \
+          /staging/item_latent_vectors \
+          --progress --transfers=16 --checkers=8 --fast-list
+
+        echo "All downloads complete. Local contents:"
+        echo "raw:" && ls -lh /staging/raw
+        echo "user_latent_vectors:" && ls -lh /staging/user_latent_vectors
+        echo "item_latent_vectors:" && ls -lh /staging/item_latent_vectors
+
+  transform:
+    image: python:3.9-slim
+    container_name: etl_transform
+    volumes:
+      - ./scripts:/app                    # where transform.py lives
+      - ./data:/staging          # input & output staging dir
+    working_dir: /app
+    depends_on:
+      - extract
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        pip install pandas pyarrow    # ensure you have Parquet support
+        python transform.py
+
+  load:
+    image: rclone/rclone:latest
+    container_name: etl_load
+    volumes:
+      - ./data:/staging
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
+          exit 1
+        fi
+
+        # ensure target path exists (Swift backends ignore empty dirs)
+        rclone mkdir chi_tacc:"$RCLONE_CONTAINER/dcn"
+
+        # copy the transformed data
+        rclone copy /staging/transformed.csv \
+          chi_tacc:"$RCLONE_CONTAINER/dcn" \
+          --fast-list
+
+        echo "Load complete."
