@@ -1,5 +1,6 @@
 import pandas as pd
 from pathlib import Path
+from sklearn.preprocessing import MultiLabelBinarizer
 
 REVIEWS_PATH = "/staging/raw/yelp_academic_dataset_review.json"
 BUSINESS_PATH = "/staging/raw/yelp_academic_dataset_business.json"
@@ -11,12 +12,32 @@ OUT_CSV = Path("/staging/transformed.csv")
 print("Loading business data and filtering restaurants…")
 business = (
     pd.read_json(BUSINESS_PATH, lines=True)
-      .loc[:, ["business_id", "attributes", "categories"]]
+      .loc[:, ["business_id", "categories"]]
 )
 # keep only restaurants
+# 1) Split the comma-separated string into a Python list of clean labels
 restaurant_business = business[
     business["categories"].str.contains("Restaurant", case=False, na=False)
-]
+].copy()
+restaurant_business["category_list"] = (
+    restaurant_business["categories"]
+      .str.split(",")                          # split on commas
+      .apply(lambda cats: [c.strip() for c in cats])
+)
+
+# 2) Fit a MultiLabelBinarizer to get one column per category
+mlb = MultiLabelBinarizer()
+cat_dummies = pd.DataFrame(
+    mlb.fit_transform(restaurant_business["category_list"]),
+    columns=mlb.classes_,
+    index=restaurant_business.index
+)
+
+# 3) Drop the old columns and concat the new dummies
+restaurant_business = pd.concat(
+    [ restaurant_business[["business_id"]], cat_dummies ],
+    axis=1
+)
 
 print("Loading user latent vectors…")
 
@@ -53,8 +74,8 @@ for i, reviews_chunk in enumerate(chunk_iter):
 
     reviews = (
         reviews_chunk
-          .loc[:, ["review_id", "user_id", "business_id", "text", "stars"]]
-          .rename(columns={"text": "review_text", "stars": "rating"})
+          .loc[:, ["review_id", "user_id", "business_id", "stars"]]
+          .rename(columns={ "stars": "rating"})
     )
 
     # restrict to restaurant reviews only

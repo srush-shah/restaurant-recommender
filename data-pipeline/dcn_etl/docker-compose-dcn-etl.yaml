@@ -59,7 +59,7 @@ services:
       - -c
       - |
         set -e
-        pip install pandas pyarrow    # ensure you have Parquet support
+        pip install pandas pyarrow scikit-learn transformers torch accelerate datasets tqdm    # ensure you have Parquet support
         python transform.py
 
   load:
