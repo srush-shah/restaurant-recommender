@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 SQLAlchemy
+prometheus_fastapi_instrumentator
 psycopg2-binary
 numpy
 torch
-prometheus_fastapi_instrumentator

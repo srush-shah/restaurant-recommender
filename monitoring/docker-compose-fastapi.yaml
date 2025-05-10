@@ -3,7 +3,7 @@ version: "3.8"
 services:
   fastapi_server:
     build:
-      context: /home/cc/restaurant-recommender/serving          # path to your project root with Dockerfile
+      context: /home/cc/restaurant-recommender/monitoring         # path to your project root with Dockerfile
       dockerfile: Dockerfile
     container_name: fastapi_server
     deploy:
@@ -37,13 +37,3 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin  # HTTP port for FastAPI
-
-  jupyter:
-    image: quay.io/jupyter/minimal-notebook:latest
-    container_name: jupyter
-    ports:
-      - "8888:8888"
-    volumes:
-      - /home/cc/restaurant-recommender:/home/jovyan/work   # mount your repo for notebooks/workspace
-    command: >
-      bash -c "pip install numpy && start-notebook.sh"

@@ -2,10 +2,10 @@ import os
 import glob
 import csv
 import numpy as np
+from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
-from prometheus_fastapi_instrumentator import Instrumentator
 
 # ─── CONFIGURATION ───────────────────────────────────────────────────────────
 # Directories where CSV embeddings are mounted
