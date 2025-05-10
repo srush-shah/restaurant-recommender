@@ -3,7 +3,7 @@ version: "3.8"
 services:
   fastapi_server:
     build:
-      context: /home/cc/restaurant-recommender          # path to your project root with Dockerfile
+      context: /home/cc/restaurant-recommender/serving          # path to your project root with Dockerfile
       dockerfile: Dockerfile
     container_name: fastapi_server
     deploy:
@@ -14,7 +14,8 @@ services:
               count: all
               capabilities: [gpu]
     volumes:
-      - /mnt/object:/mnt/object:ro  # mount entire object store
+      - /mnt/object/user_latent_vectors:/app/data/user_latent_vectors:ro
+      - /mnt/object/item_latent_vectors:/app/data/item_latent_vectors:ro
     ports:
       - "8000:8000"  # HTTP port for FastAPI
 

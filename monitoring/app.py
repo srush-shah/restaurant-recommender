@@ -2,6 +2,7 @@ import os
 import glob
 import csv
 import numpy as np
+from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
@@ -96,3 +97,6 @@ async def recommend(req: RecommendRequest):
 
     # Return raw indices for debugging
     return {"user_id": req.user_id, "idxs": idxs.tolist()}
+
+
+Instrumentator().instrument(app).expose(app)

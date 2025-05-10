@@ -1,0 +1,92 @@
+name: persist_block
+services:
+  minio:
+    image: minio/minio
+    container_name: minio
+    restart: always
+    expose:
+      - "9000"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: "your-access-key"
+      MINIO_ROOT_PASSWORD: "your-secret-key"
+    healthcheck:
+      test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
+      interval: 1s
+      timeout: 10s
+      retries: 5
+    command: server /data --console-address ":9001"
+    volumes:
+      - /mnt/block/minio_data:/data
+
+  minio-create-bucket:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set minio http://minio:9000 your-access-key your-secret-key &&
+      if ! mc ls minio/mlflow-artifacts; then
+        mc mb minio/mlflow-artifacts &&
+        echo 'Bucket mlflow-artifacts created'
+      else
+        echo 'Bucket mlflow-artifacts already exists';
+      fi"
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mlflowdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - /mnt/block/postgres_data:/var/lib/postgresql/data
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.20.2
+    container_name: mlflow
+    restart: always
+    depends_on:
+      - minio
+      - postgres
+      - minio-create-bucket
+    environment:
+      MLFLOW_TRACKING_URI: http://0.0.0.0:8000
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: "your-access-key"
+      AWS_SECRET_ACCESS_KEY: "your-secret-key"
+    ports:
+      - "8000:8000"
+    command: >
+      /bin/sh -c "pip install psycopg2-binary boto3 &&
+      mlflow server --backend-store-uri postgresql://user:password@postgres/mlflowdb
+      --artifacts-destination s3://mlflow-artifacts/ --serve-artifacts --host 0.0.0.0 --port 8000"
+
+  # jupyter:
+  #   image: quay.io/jupyter/pytorch-notebook:pytorch-2.5.1
+  #   container_name: jupyter
+  #   ports:
+  #     - "8888:8888"
+  #   shm_size: 8g
+  #   environment:
+  #     - MLFLOW_TRACKING_URI=http://${HOST_IP}:8000/
+  #     - FOOD11_DATA_DIR=/mnt/Food-11
+  #   volumes:
+  #     - ~/data-persist-chi/workspace:/home/jovyan/work/
+  #     - type: bind
+  #       source: /mnt/object
+  #       target: /mnt/Food-11
+  #       read_only: true
+  #     - type: bind
+  #       source: /mnt/object
+  #       target: /mnt/Food-11
+  #       read_only: true
+  #   command: >
+  #     bash -c "python3 -m pip install mlflow && start-notebook.sh"

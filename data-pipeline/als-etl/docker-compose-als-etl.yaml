@@ -1,0 +1,101 @@
+name: als-etl
+services:
+  extract:
+    image: rclone/rclone:latest
+    container_name: etl_extract
+    volumes:
+      - ./data:/staging           # where you want the files to land
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    entrypoint: /bin/sh
+    working_dir: /app
+    command:
+      - -c
+      - |
+        set -e
+
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
+          exit 1
+        fi
+
+        echo "Creating local staging dirs..."
+        mkdir -p /staging/raw
+
+        echo "Downloading raw Yelp files..."
+        rclone copy chi_tacc:"$RCLONE_CONTAINER/raw" \
+          /staging/raw \
+          --progress --transfers=32 --checkers=16 --fast-list
+
+        echo "All downloads complete. Local contents:"
+        echo "raw:" && ls -lh /staging/raw
+
+  transform:
+    build:
+      context: .
+      dockerfile: Dockerfile.transform
+    container_name: etl_transform
+    volumes:
+      - ./data:/staging
+    working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Memory management
+      - PANDAS_MAX_ROWS=1000000000
+      - NUMEXPR_MAX_THREADS=8
+      - PANDAS_CHUNKSIZE=100000
+      # Add memory management for Python
+      - PYTHONMALLOC=malloc
+      - MALLOC_TRIM_THRESHOLD_=100000
+      # Garbage collection settings
+      - PYTHONGC=1
+    deploy:
+      resources:
+        limits:
+          memory: 24G
+          cpus: '8.0'
+        reservations:
+          memory: 16G
+          cpus: '4.0'
+    # Enable access to CPU cores
+    cpuset: '0-7'
+    # Add ulimits for better memory handling
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    command: ["python", "scripts/transform.py"]
+
+  load:
+    image: rclone/rclone:latest
+    container_name: etl_load
+    volumes:
+      - ./data:/staging
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+    entrypoint: /bin/sh
+    working_dir: /app
+    command:
+      - -c
+      - |
+        set -e
+
+        if [ -z "$RCLONE_CONTAINER" ]; then
+          echo "ERROR: RCLONE_CONTAINER is not set"
+          exit 1
+        fi
+
+        echo "Creating local staging dirs..."
+        mkdir -p /staging/als
+
+        echo "Uploading contents of 'als' folder into object store at 'als/'..."
+        rclone copy /staging/als chi_tacc:$RCLONE_CONTAINER/als \
+          --progress \
+          --transfers=32 \
+          --checkers=16 \
+          --multi-thread-streams=8 \
+          --fast-list
+
+        echo "Listing contents of chi_tacc:$RCLONE_CONTAINER/als:"
+        rclone ls chi_tacc:$RCLONE_CONTAINER/als
