@@ -13,9 +13,40 @@ docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yam
 echo "Building FastAPI server..."
 docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yaml build fastapi_server
 
-# Start the whole stack with detailed logging
-echo "Starting all services..."
-docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yaml up -d
+# Start FastAPI and Prometheus first, but not Grafana
+echo "Starting FastAPI and Prometheus..."
+docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yaml up -d fastapi_server prometheus
+
+# Wait for Prometheus to start up
+echo "Waiting for Prometheus to start..."
+max_attempts=30
+attempt=0
+prometheus_ready=false
+
+while [ $attempt -lt $max_attempts ]; do
+  if docker ps | grep -q prometheus; then
+    echo "Prometheus is running, checking if it's responding..."
+    if curl -s http://localhost:9090/-/ready > /dev/null; then
+      prometheus_ready=true
+      echo "Prometheus is ready!"
+      break
+    fi
+  fi
+  
+  attempt=$((attempt+1))
+  echo "Waiting for Prometheus... (attempt $attempt/$max_attempts)"
+  sleep 2
+done
+
+if [ "$prometheus_ready" = false ]; then
+  echo "Prometheus failed to start or respond in time"
+  docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yaml logs prometheus
+  exit 1
+fi
+
+# Now start Grafana
+echo "Starting Grafana..."
+docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yaml up -d grafana
 
 # Verify services are running
 echo "Verifying services are running..."
