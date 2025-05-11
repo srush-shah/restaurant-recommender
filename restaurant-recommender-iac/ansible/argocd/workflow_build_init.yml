@@ -1,0 +1,61 @@
+- name: Run Argo Workflow from GitHub Repo
+  hosts: node1
+  become: yes
+  vars:
+    repo_url: https://github.com/teaching-on-testbeds/gourmetgram-iac.git
+    repo_dest: /tmp/gourmetgram-iac
+    workflow_file: workflows/build-initial.yaml   
+    workflow_name: build-initial
+    argo_namespace: argo
+
+  tasks:
+    - name: Clone or update gourmetgram-iac repo
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_dest }}"
+        version: main   
+
+- name: Run Argo Workflow from GitHub Repo
+  hosts: node1
+  become: yes
+  vars:
+    repo_url: https://github.com/teaching-on-testbeds/gourmetgram-iac.git
+    repo_dest: /tmp/gourmetgram-iac
+    workflow_file: workflows/build-initial.yaml   
+    workflow_name: build-initial
+    argo_namespace: argo
+
+  tasks:
+    - name: Clone or update gourmetgram-iac repo
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_dest }}"
+        version: main   
+
+    - name: Submit Argo Workflow
+      command: kubectl -n {{ argo_namespace }} create -f {{ repo_dest }}/{{ workflow_file }}
+      register: workflow_submit
+
+    - name: Extract Workflow Name
+      set_fact:
+        workflow_name_generated: "{{ workflow_submit.stdout.split(' ')[0].split('/')[1] }}"
+
+    - name: Wait for workflow to complete (success or fail)
+      shell: |
+        kubectl -n {{ argo_namespace }} wait --for=condition=Completed workflow/{{ workflow_name_generated }} --timeout=600s
+      register: workflow_status
+      failed_when: workflow_status.rc != 0
+
+    - name: Get final workflow result
+      shell: |
+        kubectl -n {{ argo_namespace }} get workflow {{ workflow_name_generated }} -o jsonpath="{.status.phase}"
+      register: workflow_phase
+
+    - name: Display workflow phase
+      debug:
+        msg: "Workflow {{ workflow_name_generated }} finished with status: {{ workflow_phase.stdout }}"
+
+    - name: Fail if workflow did not succeed
+      fail:
+        msg: "Workflow {{ workflow_name_generated }} failed with status: {{ workflow_phase.stdout }}"
+      when: workflow_phase.stdout != "Succeeded"

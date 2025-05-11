@@ -1,0 +1,62 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: kaniko-pvc-build-
+spec:
+  entrypoint: kaniko-build-flow
+  volumeClaimTemplates:
+  - metadata:
+      name: workdir
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+
+  templates:
+  - name: kaniko-build-flow
+    steps:
+      - - name: clone-repo
+          template: git-clone
+      - - name: kaniko-build
+          template: kaniko
+
+  - name: git-clone
+    container:
+      image: alpine/git
+      command: [sh, -c]
+      args:
+        - |
+          MAX_RETRIES=5
+          i=1
+
+          while [ $i -le $MAX_RETRIES ]; do
+            echo "Attempt $i of $MAX_RETRIES: Cloning repo..."
+            git clone --branch master https://github.com/teaching-on-testbeds/gourmetgram.git /mnt/workspace && break
+            echo "Git clone failed. Retrying in 5 seconds..."
+            i=$((i + 1))
+            sleep 5
+          done
+
+          if [ ! -d /mnt/workspace/.git ]; then
+            echo "Git clone failed after $MAX_RETRIES attempts."
+            exit 1
+          fi
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/workspace
+
+  - name: kaniko
+    container:
+      image: gcr.io/kaniko-project/executor:latest
+      args:
+        - --dockerfile=/mnt/workspace/Dockerfile
+        - --context=/mnt/workspace
+        - --destination=registry.kube-system.svc.cluster.local:5000/gourmetgram-app:staging-1.0.0
+        - --destination=registry.kube-system.svc.cluster.local:5000/gourmetgram-app:canary-1.0.0
+        - --destination=registry.kube-system.svc.cluster.local:5000/gourmetgram-app:production-1.0.0
+        - --insecure
+      volumeMounts:
+        - name: workdir
+          mountPath: /mnt/workspace
+

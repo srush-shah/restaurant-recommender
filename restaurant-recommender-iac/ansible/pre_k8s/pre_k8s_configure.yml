@@ -1,0 +1,50 @@
+---
+- name: Disable and Mask firewalld
+  hosts: all
+  become: yes  # Run tasks as root
+
+  tasks:
+    - name: Stop firewalld service
+      systemd:
+        name: firewalld
+        state: stopped
+        enabled: no
+
+    - name: Mask firewalld service
+      systemd:
+        name: firewalld
+        masked: yes
+
+- name: Set up insecure registry for Docker
+  hosts: node1,node2,node3
+  become: yes
+
+  vars:
+    insecure_registry: "registry.kube-system.svc.cluster.local:5000"
+
+  tasks:
+
+    - name: Ensure /etc/docker directory exists
+      file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+
+    - name: Create /etc/docker/daemon.json if not exists
+      file:
+        path: /etc/docker/daemon.json
+        state: touch
+        mode: '0644'
+
+    - name: Configure Docker daemon.json for insecure registry
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "registry-mirrors": ["http://kvm-dyn-129-114-25-196.tacc.chameleoncloud.org:5000"],
+            "insecure-registries": ["{{ insecure_registry }}", "kvm-dyn-129-114-25-196.tacc.chameleoncloud.org:5000"]
+          }
+        owner: root
+        group: root
+        mode: '0644'
+

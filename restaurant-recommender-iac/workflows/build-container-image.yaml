@@ -1,0 +1,158 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: build-container-image
+spec:
+  entrypoint: kaniko-build-flow
+  arguments:
+    parameters:
+    - name: model-version
+
+  volumeClaimTemplates:
+  - metadata:
+      name: workdir
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 2Gi
+
+  templates:
+  - name: kaniko-build-flow
+    steps:
+      - - name: clone-repo
+          template: git-clone
+      - - name: fetch-model
+          template: download-model
+          arguments:
+            parameters:
+            - name: model-version
+              value: "{{workflow.parameters.model-version}}"
+      - - name: kaniko-build
+          template: kaniko
+          arguments:
+            parameters:
+            - name: model-version
+              value: "{{workflow.parameters.model-version}}"
+      - - name: tag-model-staging
+          template: set-mlflow-alias
+          arguments:
+            parameters:
+            - name: model-version
+              value: "{{workflow.parameters.model-version}}"
+      - - name: deploy-to-staging
+          template: trigger-deploy
+          arguments:
+            parameters:
+            - name: model-version
+              value: "{{workflow.parameters.model-version}}"
+            - name: environment
+              value: "staging"
+
+  - name: git-clone
+    container:
+      image: alpine/git
+      command: [sh, -c]
+      args:
+        - |
+          MAX_RETRIES=5
+          i=1
+
+          while [ $i -le $MAX_RETRIES ]; do
+            echo "Attempt $i of $MAX_RETRIES: Cloning repo..."
+            git clone --branch workflow https://github.com/teaching-on-testbeds/gourmetgram.git /mnt/workspace && break
+            echo "Git clone failed. Retrying in 5 seconds..."
+            i=$((i + 1))
+            sleep 5
+          done
+
+          if [ ! -d /mnt/workspace/.git ]; then
+            echo "Git clone failed after $MAX_RETRIES attempts."
+            exit 1
+          fi
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/workspace
+
+  - name: download-model
+    inputs:
+      parameters:
+      - name: model-version
+    container:
+      image: python:3.11-slim
+      command: [sh, -c]
+      args:
+        - |
+          pip install mlflow-skinny
+          export MLFLOW_TRACKING_URI=http://mlflow.gourmetgram-platform.svc.cluster.local:8000
+          mkdir -p /tmp/mlflow_model
+
+          echo "Downloading MLflow model artifacts..."
+          mlflow artifacts download \
+            --artifact-uri models:/GourmetGramFood11Model/{{inputs.parameters.model-version}} \
+            -d /tmp/mlflow_model || { echo "MLflow download failed"; exit 1; }
+
+          echo "Searching for model.pth..."
+          FOUND=$(find /tmp/mlflow_model/data -name model.pth | head -n 1)
+          if [ -z "$FOUND" ]; then
+            echo "ERROR: model.pth not found in MLflow artifacts"; exit 1
+          fi
+
+          echo "Copying model.pth to app/ as food11.pth..."
+          cp "$FOUND" /mnt/workspace/food11.pth
+          echo "1.0.{{inputs.parameters.model-version}}" > /mnt/workspace/versions.txt
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/workspace
+
+  - name: kaniko
+    inputs:
+      parameters:
+      - name: model-version
+    container:
+      image: gcr.io/kaniko-project/executor:latest
+      resources:
+        requests:
+          memory: "1500Mi"
+      args:
+        - --dockerfile=/mnt/workspace/Dockerfile
+        - --context=/mnt/workspace
+        - --destination=registry.kube-system.svc.cluster.local:5000/gourmetgram-app:staging-1.0.{{inputs.parameters.model-version}}
+        - --insecure
+      volumeMounts:
+      - name: workdir
+        mountPath: /mnt/workspace
+
+  - name: set-mlflow-alias
+    inputs:
+      parameters:
+      - name: model-version
+    script:
+      image: python:3.11-slim
+      command: [sh, -c]
+      source: |
+        pip install mlflow-skinny > /dev/null
+        export MLFLOW_TRACKING_URI=http://mlflow.gourmetgram-platform.svc.cluster.local:8000
+        python -c "import mlflow; client = mlflow.tracking.MlflowClient(); client.set_registered_model_alias(name='GourmetGramFood11Model', alias='staging', version='{{inputs.parameters.model-version}}')"
+  
+  - name: trigger-deploy
+    inputs:
+      parameters:
+      - name: model-version
+      - name: environment
+    resource:
+      action: create
+      manifest: |
+        apiVersion: argoproj.io/v1alpha1
+        kind: Workflow
+        metadata:
+          generateName: deploy-container-image-
+        spec:
+          workflowTemplateRef:
+            name: deploy-container-image
+          arguments:
+            parameters:
+            - name: environment
+              value: "{{inputs.parameters.environment}}"
+            - name: model-version
+              value: "{{inputs.parameters.model-version}}"
