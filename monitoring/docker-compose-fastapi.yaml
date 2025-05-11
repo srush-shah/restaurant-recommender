@@ -2,19 +2,12 @@ name: fastapi_test
 services:
   fastapi_server:
     build:
-      context: .         # Use current directory as the build context
+      context: ~/restaurant-recommender/monitoring         # Use current directory as the build context
       dockerfile: Dockerfile
     container_name: fastapi_server
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     volumes:
-      - ./data/user_latent_vectors:/app/data/user_latent_vectors:rw
-      - ./data/item_latent_vectors:/app/data/item_latent_vectors:rw
+      - /mnt/object/user_latent_vectors:/app/data/user_latent_vectors:rw
+      - /mnt/object/item_latent_vectors:/app/data/item_latent_vectors:rw
     networks:
       - monitoring_network
     ports:
