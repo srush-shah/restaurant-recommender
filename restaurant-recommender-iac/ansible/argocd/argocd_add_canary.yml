@@ -1,0 +1,71 @@
+---
+- name: Deploy Gourmetgram Canary via ArgoCD & Helm
+  hosts: node1
+  become: yes
+  vars:
+    app_name: gourmetgram-canary
+    repo_url: https://github.com/teaching-on-testbeds/gourmetgram-iac.git
+    app_path: k8s/canary
+    argocd_namespace: argocd
+
+  tasks:
+
+    - name: Get ArgoCD admin password
+      command: >
+        kubectl get secret -n {{ argocd_namespace }} argocd-initial-admin-secret \
+        -o jsonpath="{.data.password}"
+      register: argocd_password_b64
+
+    - name: Decode ArgoCD password
+      shell: echo {{ argocd_password_b64.stdout }} | base64 --decode
+      register: argocd_password
+
+    - name: Login to ArgoCD
+      command: >
+        argocd login localhost --username admin \
+        --password "{{ argocd_password.stdout }}" \
+        --grpc-web --port-forward --port-forward-namespace={{ argocd_namespace }}
+      changed_when: false
+
+    - name: Detect external IP starting with 10.56
+      set_fact:
+        external_ip: "{{ ansible_all_ipv4_addresses | select('match', '^10\\.56\\..*') | list | first }}"
+
+    - name: Create gourmetgram-canary namespace if missing
+      command: kubectl create namespace gourmetgram-canary
+      register: ns_create
+      failed_when: ns_create.rc != 0 and "AlreadyExists" not in ns_create.stderr
+      changed_when: "'created' in ns_create.stdout"
+
+    - name: Check if ArgoCD app exists
+      command: argocd app get {{ app_name }} --port-forward --port-forward-namespace={{ argocd_namespace }}
+      register: app_check
+      failed_when: false
+      changed_when: false
+
+    - name: Create ArgoCD Helm app if not exists
+      when: app_check.rc != 0
+      command: >
+        argocd app create {{ app_name }} \
+        --repo {{ repo_url }} \
+        --path {{ app_path }} \
+        --dest-server https://kubernetes.default.svc \
+        --dest-namespace "" \
+        --helm-set-string service.externalIP={{ external_ip }} \
+        --sync-policy automated --self-heal \
+        --port-forward --port-forward-namespace={{ argocd_namespace }}
+
+    - name: Update ArgoCD Helm app if exists
+      when: app_check.rc == 0
+      command: >
+        argocd app set {{ app_name }} \
+        --helm-set-string service.externalIP={{ external_ip }} \
+        --port-forward --port-forward-namespace={{ argocd_namespace }}
+
+    - name: Display ArgoCD app status
+      command: argocd app get {{ app_name }} --port-forward --port-forward-namespace={{ argocd_namespace }}
+      register: final_status
+
+    - name: Show final status
+      debug:
+        var: final_status.stdout

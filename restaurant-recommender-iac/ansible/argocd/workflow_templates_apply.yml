@@ -1,0 +1,35 @@
+---
+- name: Clone repo and apply specific Argo WorkflowTemplates
+  hosts: node1
+  become: yes
+  vars:
+    repo_url: https://github.com/teaching-on-testbeds/gourmetgram-iac.git
+    repo_dest: /tmp/gourmetgram-iac
+    workflow_dir: workflows
+    argo_namespace: argo
+    templates:
+      - build-container-image.yaml
+      - deploy-container-image.yaml
+      - promote-model.yaml
+      - train-model.yaml
+
+  tasks:
+    - name: Clone or update gourmetgram-iac repo
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_dest }}"
+        version: main
+
+    - name: Apply selected WorkflowTemplates to Argo namespace
+      command: kubectl apply -n {{ argo_namespace }} -f {{ repo_dest }}/{{ workflow_dir }}/{{ item }}
+      loop: "{{ templates }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Verify applied WorkflowTemplates
+      command: kubectl get workflowtemplates -n {{ argo_namespace }}
+      register: wft_list
+
+    - name: Show WorkflowTemplates
+      debug:
+        var: wft_list.stdout

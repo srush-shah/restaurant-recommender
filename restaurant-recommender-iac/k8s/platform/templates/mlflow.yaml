@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: gourmetgram-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: ghcr.io/mlflow/mlflow:v2.20.2
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: http://0.0.0.0:8000
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: http://minio:9000
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: accesskey
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: secretkey
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              pip install psycopg2-binary boto3 &&
+              mlflow server --backend-store-uri postgresql://user:password@postgres/mlflowdb \
+              --artifacts-destination s3://mlflow-artifacts/ --serve-artifacts --host 0.0.0.0 --port 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: gourmetgram-platform
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - port: 8000
+      targetPort: 8000
+  externalIPs:
+    - {{ .Values.mlflow.externalIP }}

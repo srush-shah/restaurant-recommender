@@ -1,0 +1,93 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: promote-model
+spec:
+  entrypoint: promote-flow
+  arguments:
+    parameters:
+    - name: source-environment
+    - name: target-environment
+    - name: model-version
+
+  templates:
+  - name: promote-flow
+    steps:
+      - - name: retag-image
+          template: skopeo-retag
+          arguments:
+            parameters:
+            - name: source-environment
+              value: "{{workflow.parameters.source-environment}}"
+            - name: target-environment
+              value: "{{workflow.parameters.target-environment}}"
+            - name: model-version
+              value: "{{workflow.parameters.model-version}}"
+      - - name: deploy
+          template: trigger-deploy
+          arguments:
+            parameters:
+            - name: environment
+              value: "{{workflow.parameters.target-environment}}"
+            - name: model-version
+              value: "{{workflow.parameters.model-version}}"
+      - - name: update-mlflow-alias
+          template: set-mlflow-alias
+          arguments:
+            parameters:
+            - name: model-version
+              value: "{{workflow.parameters.model-version}}"
+            - name: alias
+              value: "{{workflow.parameters.target-environment}}"
+
+  - name: skopeo-retag
+    inputs:
+      parameters:
+      - name: source-environment
+      - name: target-environment
+      - name: model-version
+    container:
+      image: quay.io/skopeo/stable
+      command: [sh, -c]
+      args:
+        - |
+          skopeo copy \
+            --src-tls-verify=false \
+            --dest-tls-verify=false \
+            docker://registry.kube-system.svc.cluster.local:5000/gourmetgram-app:{{inputs.parameters.source-environment}}-1.0.{{inputs.parameters.model-version}} \
+            docker://registry.kube-system.svc.cluster.local:5000/gourmetgram-app:{{inputs.parameters.target-environment}}-1.0.{{inputs.parameters.model-version}}
+
+  - name: set-mlflow-alias
+    inputs:
+      parameters:
+      - name: model-version
+      - name: alias
+    script:
+      image: python:3.11-slim
+      command: [sh, -c]
+      source: |
+        pip install mlflow-skinny > /dev/null
+        export MLFLOW_TRACKING_URI=http://mlflow.gourmetgram-platform.svc.cluster.local:8000
+        python -c "import mlflow; client = mlflow.tracking.MlflowClient(); client.set_registered_model_alias(name='GourmetGramFood11Model', alias='{{inputs.parameters.alias}}', version='{{inputs.parameters.model-version}}')"
+
+  - name: trigger-deploy
+    inputs:
+      parameters:
+      - name: model-version
+      - name: environment
+    resource:
+      action: create
+      manifest: |
+        apiVersion: argoproj.io/v1alpha1
+        kind: Workflow
+        metadata:
+          generateName: deploy-container-image-
+        spec:
+          workflowTemplateRef:
+            name: deploy-container-image
+          arguments:
+            parameters:
+            - name: environment
+              value: "{{inputs.parameters.environment}}"
+            - name: model-version
+              value: "{{inputs.parameters.model-version}}"

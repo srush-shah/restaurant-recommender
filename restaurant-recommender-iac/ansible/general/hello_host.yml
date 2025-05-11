@@ -1,0 +1,14 @@
+---
+- name: Hello, world - use Ansible to run a command on each host
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - name: Run hostname command
+      command: hostname
+      register: hostname_output
+
+    - name: Show hostname output
+      debug:
+        msg: "The hostname of {{ inventory_hostname }} is {{ hostname_output.stdout }}"
+

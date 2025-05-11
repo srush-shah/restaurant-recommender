@@ -1,0 +1,18 @@
+replicaCount: 1
+
+image:
+  repository: registry.kube-system.svc.cluster.local:5000/gourmetgram-app
+  tag: staging-1.0.0
+
+service:
+  port: 8081
+  externalIP: ""   # Placeholder
+
+resources:
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
+  requests:
+    cpu: "200m"
+    memory: "128Mi"
+

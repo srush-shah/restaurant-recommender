@@ -1,0 +1,107 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: train-model
+spec:
+  entrypoint: training-and-build
+  arguments:
+    parameters:
+    - name: endpoint-ip
+
+  templates:
+  - name: training-and-build
+    steps:
+      - - name: trigger-training-endpoint
+          template: call-endpoint
+          arguments:
+            parameters:
+            - name: endpoint-ip
+              value: "{{workflow.parameters.endpoint-ip}}"
+      - - name: build-container
+          template: trigger-build
+          arguments:
+            parameters:
+            - name: model-version
+              value: "{{steps.trigger-training-endpoint.outputs.result}}"
+          when: "{{steps.trigger-training-endpoint.outputs.result}} != ''"
+
+  - name: call-endpoint
+    inputs:
+      parameters:
+      - name: endpoint-ip
+    script:
+      image: alpine:3.18
+      command: [sh]
+      source: |
+
+        MAX_RETRIES=5
+        RETRY_DELAY=3
+        i=1
+        INSTALL_SUCCESS=0
+
+        set +e  # allow manual error handling
+
+        # Retry installation
+        while [ $i -le $MAX_RETRIES ]; do
+          echo "[INFO] Attempt $i to install curl and jq..." >&2
+          apk update > /dev/null 2>&1
+          apk add --no-cache curl jq > /dev/null 2>&1
+          STATUS=$?
+          if [ $STATUS -eq 0 ]; then
+            echo "[INFO] Packages installed successfully." >&2
+            INSTALL_SUCCESS=1
+            break
+          fi
+          echo "[WARN] apk add failed (exit $STATUS). Retrying in $RETRY_DELAY seconds..." >&2
+          sleep $RETRY_DELAY
+          i=$((i + 1))
+        done
+
+        set -e  # return to fail-fast mode
+
+        if [ $INSTALL_SUCCESS -ne 1 ]; then
+          echo "[ERROR] Failed to install curl and jq after $MAX_RETRIES attempts." >&2
+          exit 1
+        fi
+
+        # Trigger model training
+        echo "[INFO] Triggering model training..." >&2
+        RESPONSE=$(curl -f -s -X POST http://{{inputs.parameters.endpoint-ip}}:9090/trigger-training)
+        CURL_EXIT_CODE=$?
+
+        echo "[INFO] Training endpoint response was: $RESPONSE" >&2
+
+
+        if [ $CURL_EXIT_CODE -ne 0 ]; then
+          echo "[ERROR] curl failed with code $CURL_EXIT_CODE" >&2
+          exit $CURL_EXIT_CODE
+        fi
+
+        # Extract model version
+        VERSION=$(echo "$RESPONSE" | jq -r '.new_model_version // empty')
+
+        if [ -z "$VERSION" ]; then
+          echo "[WARN] 'new_model_version' not found in response." >&2
+          exit 1
+        fi
+
+        echo -n "$VERSION"
+
+  - name: trigger-build
+    inputs:
+      parameters:
+      - name: model-version
+    resource:
+      action: create
+      manifest: |
+        apiVersion: argoproj.io/v1alpha1
+        kind: Workflow
+        metadata:
+          generateName: build-container-image-
+        spec:
+          workflowTemplateRef:
+            name: build-container-image
+          arguments:
+            parameters:
+            - name: model-version
+              value: "{{inputs.parameters.model-version}}"
