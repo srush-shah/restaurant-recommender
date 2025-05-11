@@ -1,4 +1,4 @@
-FROM quay.io/jupyter/pytorch-notebook:cuda12-latest
+FROM quay.io/jupyter/pytorch-notebook:cuda11
 
 USER ${NB_UID}
 

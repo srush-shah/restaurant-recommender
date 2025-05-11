@@ -1,0 +1,8 @@
+FROM quay.io/jupyter/pytorch-notebook:cuda12-pytorch-2.5.1
+
+USER ${NB_UID}
+RUN pip install --pre --no-cache-dir \
+    'onnx' \
+    'onnxruntime-openvino' && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"

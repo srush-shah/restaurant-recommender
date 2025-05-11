@@ -23,7 +23,8 @@ services:
         echo "Creating local staging dirs..."
         mkdir -p /staging/raw \
                  /staging/user_latent_vectors \
-                 /staging/item_latent_vectors
+                 /staging/item_latent_vectors \
+                 /staging/dcn
 
         echo "Downloading raw Yelp files..."
         rclone copy chi_tacc:"$RCLONE_CONTAINER/raw" \
@@ -46,21 +47,40 @@ services:
         echo "item_latent_vectors:" && ls -lh /staging/item_latent_vectors
 
   transform:
-    image: python:3.9-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.transform
     container_name: etl_transform
     volumes:
-      - ./scripts:/app                    # where transform.py lives
-      - ./data:/staging          # input & output staging dir
+      - ./scripts:/app
+      - ./data:/staging
     working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PANDAS_CHUNKSIZE=100000
+      - NUMEXPR_MAX_THREADS=4
+      - PYTHONMALLOC=malloc
+      - MALLOC_TRIM_THRESHOLD_=100000
+      - PYTHONGC=1
+      - OMP_NUM_THREADS=4
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+          cpus: '3.5'
+        reservations:
+          memory: 8G
+          cpus: '2.0'
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       - extract
-    entrypoint: /bin/sh
-    command:
-      - -c
-      - |
-        set -e
-        pip install pandas pyarrow scikit-learn transformers torch accelerate datasets tqdm    # ensure you have Parquet support
-        python transform.py
+    command: ["python", "transform.py"]
 
   load:
     image: rclone/rclone:latest
@@ -69,6 +89,8 @@ services:
       - ./data:/staging
       - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
     entrypoint: ["/bin/sh", "-c"]
+    depends_on:
+      - transform
     command:
       - |
         set -e
@@ -78,12 +100,22 @@ services:
           exit 1
         fi
 
-        # ensure target path exists (Swift backends ignore empty dirs)
+        # Wait for transform to create the output files
+        while [ ! -f /staging/dcn/train.parquet ] || \
+              [ ! -f /staging/dcn/validation.parquet ] || \
+              [ ! -f /staging/dcn/production.parquet ]; do
+          echo "Waiting for transform to complete..."
+          sleep 10
+        done
+
+        # ensure target path exists
         rclone mkdir chi_tacc:"$RCLONE_CONTAINER/dcn"
 
         # copy the transformed data
-        rclone copy /staging/transformed.csv \
+        echo "Uploading transformed data..."
+        rclone copy /staging/dcn \
           chi_tacc:"$RCLONE_CONTAINER/dcn" \
-          --fast-list
+          --progress --transfers=16 --checkers=8 --fast-list
 
-        echo "Load complete."
+        echo "Load complete. Contents of dcn/:"
+        rclone ls chi_tacc:"$RCLONE_CONTAINER/dcn"

@@ -62,16 +62,16 @@ services:
       - postgres
       - minio-create-bucket  # make sure minio and posgres services are alive, and bucket is created, before mlflow starts
     environment:
-      MLFLOW_TRACKING_URI: http://0.0.0.0:8000
+      MLFLOW_TRACKING_URI: http://0.0.0.0:5000
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000  # how mlflow will access object store
       AWS_ACCESS_KEY_ID: "your-access-key"
       AWS_SECRET_ACCESS_KEY: "your-secret-key"
     ports:
-      - "8000:8000"
+      - "5000:5000"
     command: >
       /bin/sh -c "pip install psycopg2-binary boto3 &&
       mlflow server --backend-store-uri postgresql://user:password@postgres/mlflowdb 
-      --artifacts-destination s3://mlflow-artifacts/ --serve-artifacts --host 0.0.0.0 --port 8000"
+      --artifacts-destination s3://mlflow-artifacts/ --serve-artifacts --host 0.0.0.0 --port 5000"
 
 volumes:
   minio_data:
