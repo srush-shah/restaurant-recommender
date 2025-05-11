@@ -1,0 +1,49 @@
+volumes:
+  food11:
+    external: true  # Uses externally created volume
+
+services:
+  init-data:
+    image: python:3.11
+    volumes:
+      - food11:/data
+    working_dir: /data
+    command:
+      - bash
+      - -c
+      - |
+        set -e  # Stop on error
+        echo "Creating dataset directory..."
+        mkdir -p /data/Food-11 && cd /data/Food-11
+
+        echo "Downloading dataset..."
+        curl -L https://nyu.box.com/shared/static/m5kvcl25hfpljul3elhu6xz8y2w61op4.zip --output Food-11.zip
+
+        echo "Extracting dataset..."
+        unzip -q Food-11.zip
+        rm Food-11.zip
+
+        echo "Organizing dataset..."
+        python3 - <<EOF
+        import os
+        import shutil
+
+        dataset_base_dir = "/data/Food-11"
+        subdirs = ["training", "validation", "evaluation"]
+        classes = ["Bread", "Dairy product", "Dessert", "Egg", "Fried food",
+            "Meat", "Noodles/Pasta", "Rice", "Seafood", "Soup", "Vegetable/Fruit"]
+
+        for subdir in subdirs:
+            dir_path = os.path.join(dataset_base_dir, subdir)
+            if not os.path.exists(dir_path):
+                continue
+            for i in range(len(classes)):
+                class_dir = os.path.join(dir_path, f"class_{i:02d}")
+                os.makedirs(class_dir, exist_ok=True)
+                files = [f for f in os.listdir(dir_path) if f.startswith(f"{i}_")]
+                for f in files:
+                    shutil.move(os.path.join(dir_path, f), os.path.join(class_dir, f))
+
+        print("Dataset setup complete.")
+        EOF
+    restart: "no"
