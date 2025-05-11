@@ -71,6 +71,11 @@ class RecommendRequest(BaseModel):
     user_id: str
     k: int = 10
 
+# ─── HEALTH CHECK ENDPOINT ────────────────────────────────────────────────────
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "user_count": len(user_embeddings), "item_count": len(item_embeddings)}
+
 # ─── ENDPOINT (DEBUG) ──────────────────────────────────────────────────────────
 @app.post("/recommend")
 async def recommend(req: RecommendRequest):
