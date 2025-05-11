@@ -38,6 +38,10 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=5s
+    volumes:
+      - ./grafana-provisioning:/etc/grafana/provisioning
+      - ./grafana_dashboard.json:/etc/grafana/provisioning/dashboards/recsys-dashboard.json:ro
 
 networks:
   monitoring_network:
