@@ -9,14 +9,6 @@ echo "Starting services..."
 echo "Cleaning up existing containers..."
 docker compose -f docker-compose-fastapi.yaml down --remove-orphans || true
 
-# Fix path in docker-compose file if needed
-echo "Checking docker-compose file path..."
-if grep -q "/home/cc" docker-compose-fastapi.yaml; then
-  echo "Fixing context path in docker-compose file..."
-  sed -i.bak "s|context: /home/cc/restaurant-recommender/monitoring|context: .|g" docker-compose-fastapi.yaml
-  echo "Path fixed in docker-compose file"
-fi
-
 # Build the FastAPI server first 
 echo "Building FastAPI server..."
 docker compose -f docker-compose-fastapi.yaml build fastapi_server

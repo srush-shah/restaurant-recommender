@@ -13,12 +13,15 @@ services:
               count: all
               capabilities: [gpu]
     volumes:
-      - /mnt/object/user_latent_vectors:/app/data/user_latent_vectors:rw
-      - /mnt/object/item_latent_vectors:/app/data/item_latent_vectors:rw
+      - ./data/user_latent_vectors:/app/data/user_latent_vectors:rw
+      - ./data/item_latent_vectors:/app/data/item_latent_vectors:rw
     networks:
       - monitoring_network
     ports:
       - "8000:8000"
+    environment:
+      - USER_CSV_DIR=/app/data/user_latent_vectors
+      - ITEM_CSV_DIR=/app/data/item_latent_vectors
       
   prometheus:
     image: prom/prometheus:latest
