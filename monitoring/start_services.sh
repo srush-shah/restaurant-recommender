@@ -58,6 +58,36 @@ fi
 # Clean up existing containers to avoid conflicts
 echo "Cleaning up existing containers..."
 docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yaml down --remove-orphans || true
+docker compose -f ~/restaurant-recommender/ml_train_docker/docker-compose-mlflow.yaml down --remove-orphans || true
+
+# Start MLflow tracking services
+echo "Starting MLflow tracking services..."
+docker compose -f ~/restaurant-recommender/ml_train_docker/docker-compose-mlflow.yaml up -d
+
+# Wait for MLflow services to be ready
+echo "Waiting for MLflow to start..."
+max_attempts=30
+attempt=0
+mlflow_ready=false
+
+while [ $attempt -lt $max_attempts ]; do
+  if docker ps | grep -q mlflow; then
+    echo "MLflow is running, checking if it's responding..."
+    if curl -s http://localhost:5000/api/2.0/mlflow/experiments/list > /dev/null; then
+      mlflow_ready=true
+      echo "MLflow is ready!"
+      break
+    fi
+  fi
+  
+  attempt=$((attempt+1))
+  echo "Waiting for MLflow... (attempt $attempt/$max_attempts)"
+  sleep 2
+done
+
+if [ "$mlflow_ready" = false ]; then
+  echo "MLflow failed to start or respond in time, but continuing with other services..."
+fi
 
 # Build the FastAPI server first 
 echo "Building FastAPI server..."
@@ -100,6 +130,12 @@ docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yam
 
 # Verify services are running
 echo "Verifying services are running..."
+echo "MLflow:"
+docker ps | grep mlflow || echo "MLflow not running!"
+echo "MinIO:"
+docker ps | grep minio || echo "MinIO not running!"
+echo "Postgres:"
+docker ps | grep postgres || echo "Postgres not running!"
 echo "FastAPI server:"
 docker ps | grep fastapi_server || echo "FastAPI server not running!"
 echo "Prometheus:"
@@ -108,6 +144,11 @@ echo "Grafana:"
 docker ps | grep grafana || echo "Grafana not running!"
 
 # Show logs for any services that failed to start
+if ! docker ps | grep -q mlflow; then
+  echo "MLflow logs:"
+  docker compose -f ~/restaurant-recommender/ml_train_docker/docker-compose-mlflow.yaml logs mlflow
+fi
+
 if ! docker ps | grep -q fastapi_server; then
   echo "FastAPI server logs:"
   docker compose -f ~/restaurant-recommender/monitoring/docker-compose-fastapi.yaml logs fastapi_server
@@ -163,8 +204,13 @@ echo "Services should be available at:"
 echo "- FastAPI: http://localhost:8000"
 echo "- Prometheus: http://localhost:9090"
 echo "- Grafana: http://localhost:3000 (admin/admin)"
+echo "- MLflow: http://localhost:5000"
+echo "- MinIO: http://localhost:9001 (user: your-access-key, password: your-secret-key)"
 echo ""
 echo "To view logs for each service, run:"
 echo "docker logs fastapi_server"
 echo "docker logs prometheus"
 echo "docker logs grafana"
+echo "docker logs mlflow"
+echo "docker logs minio"
+echo "docker logs postgres"
