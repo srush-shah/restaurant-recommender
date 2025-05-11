@@ -39,9 +39,17 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=5s
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_FEATURE_TOGGLES_ENABLE=newPanelChromeUI
+      - GF_PANELS_DISABLE_SANITIZE_HTML=true
+      - GF_DATE_FORMATS_INTERVAL_HOUR=24h
+      - GF_DATE_FORMATS_INTERVAL_DAY=30d
+      - GF_DATE_FORMATS_FULL_DATE=YYYY-MM-DD HH:mm:ss
+      - GF_PANELS_ENABLE_ALPHA=true
     volumes:
       - ./grafana-provisioning:/etc/grafana/provisioning
-      - ./grafana_dashboard.json:/etc/grafana/provisioning/dashboards/recsys-dashboard.json:ro
+      - ./grafana-provisioning/dashboards/recsys-dashboard.json:/etc/grafana/provisioning/dashboards/recsys-dashboard.json:ro
 
 networks:
   monitoring_network:
