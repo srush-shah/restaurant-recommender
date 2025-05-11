@@ -1,0 +1,31 @@
+FROM quay.io/jupyter/scipy-notebook
+
+ARG ROCM_VERSION=6.3
+ARG AMDGPU_VERSION=6.3.60300
+
+USER root
+RUN wget https://repo.radeon.com/amdgpu-install/$ROCM_VERSION/ubuntu/noble/amdgpu-install_$AMDGPU_VERSION-1_all.deb &&  \
+    apt-get update --yes && \
+    apt-get install --yes ./amdgpu-install_$AMDGPU_VERSION-1_all.deb  
+
+RUN amdgpu-install --usecase=rocm -y && rm *.deb  
+
+USER ${NB_UID}
+
+# Adjust final path
+ENV PATH="/opt/venv/bin:$PATH:/opt/rocm/bin/" 
+
+# Install PyTorch with ROCm compatibility, and Lightning
+RUN pip install --pre --no-cache-dir  --index-url https://download.pytorch.org/whl/nightly/rocm6.3/ \
+    'torch' \
+    'torchaudio' \
+    'torchvision' && \
+    pip install --pre --no-cache-dir lightning && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# Install MLFlow and pyrsmi library used by MLFlow for monitoring AMD GPU
+RUN pip install --pre --no-cache-dir pyrsmi && \
+    pip install --pre --no-cache-dir git+https://github.com/mlflow/mlflow.git && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
