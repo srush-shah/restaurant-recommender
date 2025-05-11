@@ -49,7 +49,7 @@ services:
       - GF_PANELS_ENABLE_ALPHA=true
     volumes:
       - ./grafana-provisioning:/etc/grafana/provisioning
-      - ./grafana-provisioning/dashboards/recsys-dashboard.json:/etc/grafana/provisioning/dashboards/recsys-dashboard.json:ro
+      - ./grafana_dashboard.json:/etc/grafana/provisioning/dashboards/recsys-dashboard.json:ro
 
 networks:
   monitoring_network:
