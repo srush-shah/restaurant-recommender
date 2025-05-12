@@ -5,7 +5,7 @@
   vars:
     argocd_username: "admin"
     repo_path: "https://github.com/srush-shah/restaurant-recommender/restaurant-recommender-iac.git"
-    app_name: "gourmetgram-platform"
+    app_name: "recommendation-platform"
     app_path: "k8s/platform"
     minio_access_key: "your-access-key"
 
@@ -37,18 +37,18 @@
       set_fact:
         external_ip: "{{ ansible_all_ipv4_addresses | select('match', '^10\\.56\\..*') | list | first }}"
 
-    - name: Ensure gourmetgram-platform namespace exists
-      command: kubectl get namespace gourmetgram-platform
+    - name: Ensure recommendation-platform namespace exists
+      command: kubectl get namespace recommendation-platform
       register: ns_check
       failed_when: false
       changed_when: false
 
-    - name: Create gourmetgram-platform namespace if missing
+    - name: Create recommendation-platform namespace if missing
       when: ns_check.rc != 0
-      command: kubectl create namespace gourmetgram-platform
+      command: kubectl create namespace recommendation-platform
 
     - name: Check if MinIO secret already exists
-      command: kubectl get secret minio-credentials -n gourmetgram-platform
+      command: kubectl get secret minio-credentials -n recommendation-platform
       register: minio_secret_check
       failed_when: false
       changed_when: false
@@ -62,7 +62,7 @@
       when: minio_secret_check.rc != 0
       command: >
         kubectl create secret generic minio-credentials
-        --namespace gourmetgram-platform
+        --namespace recommendation-platform
         --from-literal=accesskey={{ minio_access_key }}
         --from-literal=secretkey={{ minio_secret_key }}
       register: minio_secret_create
@@ -70,7 +70,7 @@
     - name: Get existing MinIO secret key if already exists
       when: minio_secret_check.rc == 0
       command: >
-        kubectl get secret minio-credentials -n gourmetgram-platform -o jsonpath="{.data.secretkey}"
+        kubectl get secret minio-credentials -n recommendation-platform -o jsonpath="{.data.secretkey}"
       register: existing_secret_b64
 
     - name: Decode existing MinIO secret key
