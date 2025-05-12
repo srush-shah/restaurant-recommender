@@ -1,16 +1,15 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
 import os
 import json
 from collections import Counter
 import multiprocessing as mp
-from functools import partial
 import sys
 import gc
 import logging
 import traceback
 from datetime import datetime
+import random
 
 # Set up logging
 logging.basicConfig(
@@ -36,6 +35,13 @@ OUTPUT_DIR = "/staging/als"
 # Set pandas options for better performance
 pd.options.mode.chained_assignment = None
 chunk_size = int(os.environ.get('PANDAS_CHUNKSIZE', 100000))
+
+# Splitting parameters (can be changed as required)
+MIN_INTERACTIONS_PER_USER = 3
+MIN_INTERACTIONS_PER_ITEM = 3
+TRAIN_RATIO = 0.6
+VALIDATION_RATIO = 0.2
+# TEST_RATIO is implicitly 1.0 - TRAIN_RATIO - VALIDATION_RATIO (i.e., 0.2)
 
 # Create output directory if it doesn't exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -128,6 +134,131 @@ def save_dataframe(df, filename, output_dir):
         logging.error(traceback.format_exc())
         raise
 
+def apply_k_core_filtering(df, min_user=3, min_item=3):
+    """Apply K-core filtering iteratively until convergence"""
+    try:
+        logging.info(f"Starting K-core filtering with min_user={min_user}, min_item={min_item}")
+        initial_count = len(df)
+        logging.info(f"Initial dataframe size: {initial_count} rows")
+        
+        # Iterative filtering
+        converged = False
+        iteration = 1
+        current_df = df.copy()
+        
+        while not converged:
+            logging.info(f"K-core iteration {iteration}: Starting with {len(current_df)} records")
+            
+            # Filter by user count
+            user_counts = current_df['user_id'].value_counts()
+            valid_users = user_counts[user_counts >= min_user].index
+            df_after_user_filter = current_df[current_df['user_id'].isin(valid_users)]
+            
+            # Filter by item count
+            item_counts = df_after_user_filter['business_id'].value_counts()
+            valid_items = item_counts[item_counts >= min_item].index
+            new_df = df_after_user_filter[df_after_user_filter['business_id'].isin(valid_items)]
+            
+            new_count = len(new_df)
+            logging.info(f"K-core iteration {iteration}: Ended with {new_count} records")
+            
+            # Check for convergence
+            if new_count == len(current_df):
+                converged = True
+                logging.info("K-core filtering converged")
+            
+            current_df = new_df
+            iteration += 1
+            
+            # Safety check for max iterations
+            if iteration > 10:
+                logging.warning("K-core reached max iterations (10). Breaking loop.")
+                break
+        
+        logging.info(f"K-core filtering complete. Records after filtering: {len(current_df)} (removed {initial_count - len(current_df)} records)")
+        return current_df
+    
+    except Exception as e:
+        logging.error(f"Error in k-core filtering: {e}")
+        logging.error(traceback.format_exc())
+        raise
+
+def stratified_train_test_split(df):
+    """Split data ensuring each user has items in train, validation, and test sets"""
+    try:
+        logging.info("Performing stratified train-test split")
+        
+        # Ensure each user has a minimum number of interactions
+        user_counts = df['user_id'].value_counts()
+        valid_users = user_counts[user_counts >= MIN_INTERACTIONS_PER_USER].index
+        df_valid = df[df['user_id'].isin(valid_users)]
+        
+        # For each user, split their interactions
+        train_data = []
+        validation_data = []
+        test_data = []
+        
+        # Set a random seed for reproducibility
+        random.seed(42)
+        np.random.seed(42)
+        
+        # For each user, split interactions preserving time order where possible
+        user_groups = df_valid.groupby('user_id')
+        total_users = len(user_groups)
+        
+        for i, (user_id, user_df) in enumerate(user_groups):
+            if i % 1000 == 0:
+                logging.info(f"Splitting data for user {i}/{total_users}")
+            
+            # Sort by date if available to respect chronological order
+            if 'date' in user_df.columns:
+                user_df = user_df.sort_values('date')
+            
+            # Calculate split points
+            n_interactions = len(user_df)
+            train_size = int(n_interactions * TRAIN_RATIO)
+            val_size = int(n_interactions * VALIDATION_RATIO)
+            
+            # Ensure minimum 1 item in each split if possible
+            if n_interactions >= 3:
+                train_size = max(train_size, 1)
+                val_size = max(val_size, 1)
+                test_size = n_interactions - train_size - val_size
+                test_size = max(test_size, 1)
+                
+                # Rebalance if necessary
+                if train_size + val_size + test_size > n_interactions:
+                    if val_size > 1:
+                        val_size -= 1
+                    elif train_size > 1:
+                        train_size -= 1
+            
+            # Split the data
+            train_data.append(user_df.iloc[:train_size])
+            validation_data.append(user_df.iloc[train_size:train_size+val_size])
+            test_data.append(user_df.iloc[train_size+val_size:])
+        
+        # Combine all user splits
+        train_df = pd.concat(train_data, ignore_index=True)
+        validation_df = pd.concat(validation_data, ignore_index=True)
+        test_df = pd.concat(test_data, ignore_index=True)
+        
+        logging.info(f"Split complete: Train={len(train_df)}, Validation={len(validation_df)}, Test={len(test_df)}")
+        
+        # Ensure warm-start for validation and test sets (items must exist in train)
+        train_items = set(train_df['business_id'].unique())
+        validation_df = validation_df[validation_df['business_id'].isin(train_items)]
+        test_df = test_df[test_df['business_id'].isin(train_items)]
+        
+        logging.info(f"After warm-start filtering: Train={len(train_df)}, Validation={len(validation_df)}, Test={len(test_df)}")
+        
+        return train_df, validation_df, test_df
+    
+    except Exception as e:
+        logging.error(f"Error in stratified train test split: {e}")
+        logging.error(traceback.format_exc())
+        raise
+
 def main():
     try:
         start_time = datetime.now()
@@ -216,54 +347,76 @@ def main():
                 logging.error(traceback.format_exc())
                 continue
 
-        # Process saved chunks and create final datasets
-        logging.info("Creating final datasets...")
-        train_file = os.path.join(OUTPUT_DIR, "training_data.csv")
-        val_file = os.path.join(OUTPUT_DIR, "validation_data.csv")
-        prod_file = os.path.join(OUTPUT_DIR, "production_data.csv")
-
-        # Initialize files with headers
-        for file in [train_file, val_file, prod_file]:
-            pd.DataFrame(columns=['user_id', 'business_id', 'stars', 'date', 'city'] + category_cols).to_csv(file, index=False)
-
-        # Process each saved chunk
+        # Combine all chunks into a single dataframe
+        logging.info("Combining all processed chunks...")
+        combined_df = pd.DataFrame()
         for i, chunk_file in enumerate(chunk_files):
             try:
-                logging.info(f"Processing saved chunk {i+1}/{len(chunk_files)}...")
+                logging.info(f"Reading chunk file {i+1}/{len(chunk_files)}...")
                 chunk = pd.read_csv(chunk_file)
                 chunk['date'] = pd.to_datetime(chunk['date'])
+                combined_df = pd.concat([combined_df, chunk], ignore_index=True)
                 
-                # Add city and category information
-                chunk = chunk.merge(business_city_map, on='business_id', how='left')
-                chunk = chunk.merge(business_categories_df, on='business_id', how='left')
-
-                # Split the chunk
-                chunk['split'] = chunk.groupby('user_id')['date'].rank(pct=True).apply(
-                    lambda x: 'train' if x <= 0.8 else ('val' if x <= 0.9 else 'prod'))
-
-                # Save to respective files
-                for split, file in [('train', train_file), ('val', val_file), ('prod', prod_file)]:
-                    split_chunk = chunk[chunk['split'] == split].drop('split', axis=1)
-                    split_chunk.to_csv(file, mode='a', header=False, index=False)
-
-                # Cleanup
+                # Cleanup individual chunk files early to save space
                 os.remove(chunk_file)
                 del chunk
                 gc.collect()
-                log_memory_usage()
-
+                
             except Exception as e:
-                logging.error(f"Error processing saved chunk {i}: {e}")
+                logging.error(f"Error reading chunk file {i}: {e}")
                 logging.error(traceback.format_exc())
                 continue
-
-        # Clean up
-        logging.info("Cleaning up temporary files...")
-        os.rmdir(temp_dir)
+                
+        logging.info(f"Combined dataframe size: {len(combined_df)} rows")
+        log_memory_usage()
+        
+        # Add city and category information
+        logging.info("Adding business metadata (city and categories)...")
+        combined_df = combined_df.merge(business_city_map, on='business_id', how='left')
+        combined_df = combined_df.merge(business_categories_df, on='business_id', how='left')
+        logging.info(f"Dataframe size after adding metadata: {len(combined_df)} rows")
+        log_memory_usage()
+        
+        # Apply K-core filtering
+        filtered_df = apply_k_core_filtering(
+            combined_df, 
+            min_user=MIN_INTERACTIONS_PER_USER, 
+            min_item=MIN_INTERACTIONS_PER_ITEM
+        )
+        
+        # Free memory from the original combined dataframe
+        del combined_df
+        gc.collect()
+        log_memory_usage()
+        
+        # Apply stratified train-test split
+        train_df, validation_df, test_df = stratified_train_test_split(filtered_df)
+        
+        # Free memory from the filtered dataframe
+        del filtered_df
+        gc.collect()
+        log_memory_usage()
+        
+        # Save the train, validation, and test splits
+        logging.info("Saving final datasets...")
+        train_file = os.path.join(OUTPUT_DIR, "training_data.csv")
+        val_file = os.path.join(OUTPUT_DIR, "validation_data.csv")
+        prod_file = os.path.join(OUTPUT_DIR, "production_data.csv")  # 'prod' is our test set
+        
+        save_dataframe(train_df, "training_data.csv", OUTPUT_DIR)
+        save_dataframe(validation_df, "validation_data.csv", OUTPUT_DIR)
+        save_dataframe(test_df, "production_data.csv", OUTPUT_DIR)
+        
+        # Clean up remaining temporary files
+        try:
+            os.rmdir(temp_dir)
+        except:
+            logging.warning(f"Could not remove temp directory {temp_dir}. It may not be empty.")
 
         end_time = datetime.now()
         duration = end_time - start_time
         logging.info(f"Transform completed successfully! Duration: {duration}")
+        logging.info(f"Final dataset sizes: Train={len(train_df)}, Validation={len(validation_df)}, Test={len(test_df)}")
 
     except Exception as e:
         logging.error(f"Fatal error during transformation: {e}")
