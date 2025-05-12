@@ -27,7 +27,7 @@ link to their contributions in all repos here. -->
 | Maneesh      | Units - 8       | [Commits - Maneesh](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=Maneeshk11)   |
 | Ritesh Ojha  | Units - 3       | [Commits - Ritesh](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=ritzzi23)      |
 | Russel Sy    | Units - 4,5     | [Commits - Russel](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=russelgabriel) |
-| Srushti Shah | Units - 6,7     | [Commits - Srushti](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=srush-shah)   |
+| Srushti Shah | Units - 6,7     | [Commits - Srushti](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=srush-shah) |
 
 ### System diagram
 
@@ -149,90 +149,83 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 
 #### Model serving and monitoring platforms
 
-##### Model Serving
+## Unit 6 & 7: Serving, Optimization, Evaluation & Monitoring
 
-Our model serving pipeline implements all required components from Unit 6:
+### 1. Serving from an API Endpoint
+- **FastAPI service** implemented in [monitoring/app.py](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/app.py)
+- The `/recommend` POST endpoint loads in-memory user/item embeddings (from CSVs), computes dot-product scores, and returns top-K recommendations
+- Instrumented with `prometheus-fastapi-instrumentator` to expose metrics at `/metrics` endpoint for monitoring
+- Complete Docker setup for deployment:
+  - [monitoring/docker-compose-fastapi.yaml](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/docker-compose-fastapi.yaml) orchestrates the FastAPI server, Prometheus, and Grafana
+  - [monitoring/Dockerfile](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/Dockerfile) defines the container setup
 
-1. **Serving from an API Endpoint**:
+### 2. Identifying Requirements
+After thorough benchmarking and optimization experiments documented in [model_optim.ipynb](https://github.com/srush-shah/restaurant-recommender/blob/main/model_optim.ipynb), we've established the following requirements for our restaurant recommendation system:
 
-   - Model is deployed using **FastAPI** and **Ray Serve** for efficient, scalable inference.
-   - Optimized API endpoints for real-time and batch recommendations.
+#### Model Requirements
+- **Model Size**: ≤ 0.2 MB on disk (INT8 quantized model achieved 0.15 MB)
+- **Inference Latency**: p95 ≤ 0.1 ms per individual request (achieved 0.08-0.10 ms)
+- **Accuracy**: Maintain consistent 33.9% accuracy for rounded predictions (quantized model shows minimal accuracy loss of 0.01%)
 
-2. **Identifying Deployment Requirements**:
+#### Service Requirements
+- **Request Processing Rate**: Support ≥ 500,000 recommendations per second in batch mode
+- **Concurrency**: Handle ≥ 100 simultaneous user connections
+- **Response Time**: Maintain p95 latency ≤ 50 ms for end-to-end API requests
+- **Availability**: 99.9% uptime with automated health checks and service recovery
+- **Scalability**: Ability to scale horizontally based on traffic patterns
 
-   - **Model Size Considerations**: Ensure model fits within serving infrastructure constraints.
-   - **Throughput Optimization**: Designed for high-volume batch inference.
-   - **Latency Constraints**: Ensuring minimal response time for real-time recommendations.
-   - **Concurrency Management**: Handling multiple requests efficiently in a cloud environment.
+#### System Requirements
+- **Memory Usage**: ≤ 500 MB RAM for API server instance
+- **Storage**: Efficient handling of user and restaurant embedding vectors (≤ 1 GB total)
+- **Monitoring**: Real-time metrics for request rate, latency, error rate, and model prediction distribution
+- **Deployment**: Containerized deployment with orchestration via Docker Compose
+- **Security**: Proper authentication and rate limiting to prevent abuse
 
-3. **Model Optimizations**:
+### 3. Model Optimizations
+- Implemented JIT tracing and ONNX export in [model_optim.ipynb](https://github.com/srush-shah/restaurant-recommender/blob/main/model_optim.ipynb)
+- Applied dynamic INT8 quantization using ONNX Runtime's `quantize_dynamic`
+- Generated optimized models in the [models/](https://github.com/srush-shah/restaurant-recommender/tree/main/models) directory
+- Benchmarked all model variants to identify optimal tradeoffs between size, latency, and accuracy
+- The quantized ONNX model (INT8) provides the optimal balance between performance and resource usage, reducing model size by 74% (from 0.57 MB to 0.15 MB) while maintaining prediction accuracy and providing excellent inference speed
 
-   - Graph optimizations for execution efficiency.
-   - Quantization and reduced precision for performance improvements.
-   - Hardware-optimized operators for both **CPU** and **GPU** deployments.
+### 4. Monitoring Infrastructure
+- Complete monitoring stack set up in [monitoring/docker-compose-fastapi.yaml](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/docker-compose-fastapi.yaml):
+  - **Prometheus**: Configured to scrape metrics from the FastAPI service
+  - **Grafana**: Pre-configured dashboards for visualizing performance metrics
+- Monitoring configuration:
+  - [monitoring/prometheus.yml](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/prometheus.yml) defines scraping targets
+  - [monitoring/grafana_dashboard.json](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/grafana_dashboard.json) provides a comprehensive dashboard for:
+    - Request rate (RPS)
+    - Latency percentiles (p95, p99)
+    - Error rates
+    - System resource utilization
 
-4. **System Optimizations**:
+### 5. Integration with MLflow Tracking
+- Added functionality to start MLflow tracking services via:
+  - [ml_train_docker/docker-compose-mlflow.yaml](https://github.com/srush-shah/restaurant-recommender/blob/main/ml_train_docker/docker-compose-mlflow.yaml)
+  - Services include MLflow server, MinIO for artifact storage, and PostgreSQL for experiment metadata
+- Integrated into the [monitoring/start_services.sh](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/start_services.sh) script for seamless deployment
 
-   - Load balancing for efficient request distribution.
-   - Optimized resource allocation to meet scaling demands.
+### 6. Deployment Automation
+- Created a unified deployment script [monitoring/start_services.sh](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/start_services.sh) that:
+  - Provisions Grafana configuration automatically
+  - Starts all required containers in the correct order
+  - Performs health checks to ensure all services are running correctly
+  - Provides clear status information and service endpoints
 
-5. **Multiple Serving Options**:
-   - Deployment comparisons across:
-     - **Server-grade GPU** for high-performance inference.
-     - **Server-grade CPU** for cost-efficient serving.
-     - **On-device inference** for edge applications.
-   - Performance and cost trade-off analysis for each approach.
+### Running the System
+To start all services (MLflow tracking, FastAPI server, Prometheus, and Grafana):
+```bash
+cd ~/restaurant-recommender
+bash monitoring/start_services.sh
+```
 
-This serving strategy ensures fast, reliable, and scalable model deployment for restaurant recommendations.
-
----
-
-##### Evaluation & Monitoring
-
-Our evaluation and monitoring pipeline implements all required components from Unit 7:
-
-1. **Offline Evaluation**:
-
-   - **Automated Model Evaluation** post-training, with results logged in **MLflow**.
-   - **Comprehensive Testing** covering:
-     - Standard and domain-specific test cases.
-     - Fairness and bias evaluations across user populations.
-     - Failure mode testing.
-     - Unit tests with predefined templates.
-   - **Model Registry Automation** to track performance over iterations.
-
-2. **Load Testing in Staging**:
-
-   - Performance benchmarking before full deployment.
-   - Stress testing model under varying loads.
-
-3. **Online Evaluation in Canary Environment**:
-
-   - Deploying in a controlled test environment.
-   - Simulated user interactions for real-world performance validation.
-   - Behavioral analysis to refine recommendation strategies.
-
-4. **Closing the Feedback Loop**:
-
-   - **User Feedback Collection** through interactions, ratings, and labeled annotations.
-   - **Production Data Storage** for continuous model improvement and retraining.
-
-5. **Business-Specific Evaluation**:
-
-   - Defining success metrics aligned with business goals.
-   - Tracking real-world impact of recommendations.
-
-6. **Advanced Monitoring Features**:
-   - **Data Drift Detection**:
-     - Identifying shifts in user behavior and recommendation relevance.
-   - **Model Degradation Monitoring**:
-     - Performance tracking and alerts for degradation.
-     - Automated retraining with fresh production data.
-
-This robust evaluation pipeline ensures continuous monitoring, improvement, and adaptation of our recommendation model.
-
-<!-- Make sure to clarify how you will satisfy the Unit 6 and Unit 7 requirements,
-and which optional "difficulty" points you are attempting. -->
+Services will be available at:
+- FastAPI: http://localhost:8000
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (admin/admin)
+- MLflow: http://localhost:5000
+- MinIO: http://localhost:9001 (user: your-access-key, password: your-secret-key)
 
 #### Data pipeline
 
