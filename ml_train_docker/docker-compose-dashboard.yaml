@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  interactive_dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - data_cache:/app/data_cache
+    environment:
+      - CC_AUTH_URL=${CC_AUTH_URL:-https://chi.tacc.chameleoncloud.org:5000/v3}
+      - CC_APP_CRED_ID=${CC_APP_CRED_ID:-aba2c756cb1649b6bd47c572f67a9528}
+      - CC_APP_CRED_SECRET=${CC_APP_CRED_SECRET:-HnUZC1Dvhnw1A5-19LiDQORiWURpL1IflqK3tk506NXJp8Tb0HSW4m0V9Ch4zEhwV9WR7tTxiAPTcTGHMi2SKw}
+      - CC_REGION=${CC_REGION:-CHI@TACC}
+      - CC_CONTAINER_NAME=${CC_CONTAINER_NAME:-object-persist-project23}
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 2G
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  data_cache:
+    driver: local 
