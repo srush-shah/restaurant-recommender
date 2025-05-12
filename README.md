@@ -272,11 +272,17 @@ The data pipeline implementation in our restaurant recommendation system provide
 
 3. **Interactive Data Quality Dashboard**:
 
-   - [als-dashboard](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-dashboard) provides a Streamlit-based interactive dashboard
-   - Real-time data quality monitoring through visualizations of distributions, outliers, missing values
-   - Automatic data loading from Chameleon Object Storage using rclone
-   - Metrics for data completeness, consistency, and statistical properties
-   - Docker containerization for easy deployment ([Dockerfile](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-dashboard/Dockerfile))
+   - [als-dashboard](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-dashboard) provides a comprehensive Streamlit-based interactive dashboard
+   - Latest implementation includes advanced data quality monitoring with six key analysis sections:
+     - Data Overview: Basic statistics, memory usage, and sample data preview
+     - Data Quality: Missing values analysis, duplicate records detection, and data type distribution
+     - Stars Analysis: Restaurant ratings distribution and trends over time
+     - Cities Analysis: Geographic distribution of ratings and restaurant density by location
+     - Distribution Analysis: Interactive histograms and box plots for numerical features
+     - Correlation Analysis: Feature relationship visualization through heatmaps and scatter plots
+   - Automated data loading from Chameleon Object Storage using rclone with robust error handling
+   - Enhanced configurability through Docker with an improved [run_dashboard.sh](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-dashboard/run_dashboard.sh) script for one-command deployment
+   - Real-time visualization with Plotly for interactive exploration of data patterns and anomalies
 
 4. **Persistent Storage Management**:
 
