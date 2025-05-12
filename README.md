@@ -27,7 +27,7 @@ link to their contributions in all repos here. -->
 | Maneesh      | Units - 8       | [Commits - Maneesh](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=Maneeshk11)   |
 | Ritesh Ojha  | Units - 3       | [Commits - Ritesh](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=ritzzi23)      |
 | Russel Sy    | Units - 4,5     | [Commits - Russel](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=russelgabriel) |
-| Srushti Shah | Units - 6,7     | [Commits - Srushti](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=srush-shah) |
+| Srushti Shah | Units - 6,7     | [Commits - Srushti](https://github.com/srush-shah/restaurant-recommender/commits/main/?author=srush-shah)   |
 
 ### System diagram
 
@@ -105,18 +105,17 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 1. **Train and Re-train**:
 
    - Candidate generation
-       - Train an Alternating Least Squares (ALS) model on a user-restaurant interaction matrix
-       - Retrain as new users with enough ratings get added to the matrix, existing users give more ratings, new restaurants get new ratings
+     - Train an Alternating Least Squares (ALS) model on a user-restaurant interaction matrix
+     - Retrain as new users with enough ratings get added to the matrix, existing users give more ratings, new restaurants get new ratings
    - Ranking the candidates
-       - Train a Deep and Cross Network (DCN) on user and restaurants features to capture the interaction effects between the features and generate more accurate ratings.
-       - Can play with penalties to reward diversity and serendipity in recommendations
+     - Train a Deep and Cross Network (DCN) on user and restaurants features to capture the interaction effects between the features and generate more accurate ratings.
+     - Can play with penalties to reward diversity and serendipity in recommendations
    - Continuous retraining pipeline using production feedback data
    - Model artifacts stored in versioned storage for reproducibility
 
 2. **Modeling Choices**:
    - ALS for sparse user-restaurant interaction matrix for candidate generation. This reduces the number of potential restaurant recommendations from hundreds of thousands to just hundreds.
    - DCN for handling complex feature interactions between user and restaurant profiles to generate a more accurate ranking/order of recommendations.
-
 
 **Unit 5 Requirements:**
 
@@ -152,6 +151,7 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
 ## Unit 6 & 7: Serving, Optimization, Evaluation & Monitoring
 
 ### 1. Serving from an API Endpoint
+
 - **FastAPI service** implemented in [monitoring/app.py](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/app.py)
 - The `/recommend` POST endpoint loads in-memory user/item embeddings (from CSVs), computes dot-product scores, and returns top-K recommendations
 - Instrumented with `prometheus-fastapi-instrumentator` to expose metrics at `/metrics` endpoint for monitoring
@@ -160,14 +160,17 @@ diagram, (3) justification for your strategy, (4) relate back to lecture materia
   - [monitoring/Dockerfile](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/Dockerfile) defines the container setup
 
 ### 2. Identifying Requirements
+
 After thorough benchmarking and optimization experiments documented in [model_optim.ipynb](https://github.com/srush-shah/restaurant-recommender/blob/main/model_optim.ipynb), we've established the following requirements for our restaurant recommendation system:
 
 #### Model Requirements
+
 - **Model Size**: ≤ 0.2 MB on disk (INT8 quantized model achieved 0.15 MB)
 - **Inference Latency**: p95 ≤ 0.1 ms per individual request (achieved 0.08-0.10 ms)
 - **Accuracy**: Maintain consistent 33.9% accuracy for rounded predictions (quantized model shows minimal accuracy loss of 0.01%)
 
 #### Service Requirements
+
 - **Request Processing Rate**: Support ≥ 500,000 recommendations per second in batch mode
 - **Concurrency**: Handle ≥ 100 simultaneous user connections
 - **Response Time**: Maintain p95 latency ≤ 50 ms for end-to-end API requests
@@ -175,6 +178,7 @@ After thorough benchmarking and optimization experiments documented in [model_op
 - **Scalability**: Ability to scale horizontally based on traffic patterns
 
 #### System Requirements
+
 - **Memory Usage**: ≤ 500 MB RAM for API server instance
 - **Storage**: Efficient handling of user and restaurant embedding vectors (≤ 1 GB total)
 - **Monitoring**: Real-time metrics for request rate, latency, error rate, and model prediction distribution
@@ -182,6 +186,7 @@ After thorough benchmarking and optimization experiments documented in [model_op
 - **Security**: Proper authentication and rate limiting to prevent abuse
 
 ### 3. Model Optimizations
+
 - Implemented JIT tracing and ONNX export in [model_optim.ipynb](https://github.com/srush-shah/restaurant-recommender/blob/main/model_optim.ipynb)
 - Applied dynamic INT8 quantization using ONNX Runtime's `quantize_dynamic`
 - Generated optimized models in the [models/](https://github.com/srush-shah/restaurant-recommender/tree/main/models) directory
@@ -189,6 +194,7 @@ After thorough benchmarking and optimization experiments documented in [model_op
 - The quantized ONNX model (INT8) provides the optimal balance between performance and resource usage, reducing model size by 74% (from 0.57 MB to 0.15 MB) while maintaining prediction accuracy and providing excellent inference speed
 
 ### 4. Monitoring Infrastructure
+
 - Complete monitoring stack set up in [monitoring/docker-compose-fastapi.yaml](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/docker-compose-fastapi.yaml):
   - **Prometheus**: Configured to scrape metrics from the FastAPI service
   - **Grafana**: Pre-configured dashboards for visualizing performance metrics
@@ -201,12 +207,14 @@ After thorough benchmarking and optimization experiments documented in [model_op
     - System resource utilization
 
 ### 5. Integration with MLflow Tracking
+
 - Added functionality to start MLflow tracking services via:
   - [ml_train_docker/docker-compose-mlflow.yaml](https://github.com/srush-shah/restaurant-recommender/blob/main/ml_train_docker/docker-compose-mlflow.yaml)
   - Services include MLflow server, MinIO for artifact storage, and PostgreSQL for experiment metadata
 - Integrated into the [monitoring/start_services.sh](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/start_services.sh) script for seamless deployment
 
 ### 6. Deployment Automation
+
 - Created a unified deployment script [monitoring/start_services.sh](https://github.com/srush-shah/restaurant-recommender/blob/main/monitoring/start_services.sh) that:
   - Provisions Grafana configuration automatically
   - Starts all required containers in the correct order
@@ -214,13 +222,16 @@ After thorough benchmarking and optimization experiments documented in [model_op
   - Provides clear status information and service endpoints
 
 ### Running the System
+
 To start all services (MLflow tracking, FastAPI server, Prometheus, and Grafana):
+
 ```bash
 cd ~/restaurant-recommender
 bash monitoring/start_services.sh
 ```
 
 Services will be available at:
+
 - FastAPI: http://localhost:8000
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000 (admin/admin)
@@ -229,50 +240,58 @@ Services will be available at:
 
 #### Data pipeline
 
-**Unit 8:**
+**Unit 8: Data Pipeline Implementation**
 
-1. **Persistent Storage**:
+The data pipeline implementation in our restaurant recommendation system provides robust infrastructure for handling large-scale Yelp data, transforming it for model training, and making it accessible for system components. As evidenced in the [data-pipeline](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline) directory, we've implemented:
 
-   - Dedicated Chameleon persistent storage volumes for:
-     - Raw Yelp dataset and processed data
-     - Model training artifacts and checkpoints
-     - SBERT embeddings and feature transformations
-     - Container images for deployment
-   - Managed through infrastructure-as-code for automated provisioning and attachment
+1. **ETL Pipeline for ALS Model Training**:
 
-2. **Offline Data Management**:
+   - [als-etl](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-etl) contains a comprehensive extraction, transformation, and loading pipeline
+   - Implemented a [transform.py](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-etl/scripts/transform.py) script that handles:
+     - Memory-efficient processing of large Yelp datasets using chunking techniques
+     - Category encoding and vectorization for restaurant features
+     - K-core filtering to remove sparse user-item interactions
+     - Train-test-validation splitting with stratification on businees and user ids for robust model evaluation
+     - Data validation and quality assurance
+   - Containerized with Docker for reproducible, scalable processing ([docker-compose-als-etl.yaml](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-etl/docker-compose-als-etl.yaml))
+   - Resource-optimized configuration for efficient execution on Chameleon nodes
 
-   - Primary data source: Yelp Dataset (structured JSON)
-     - Restaurant business data: attributes, categories, locations
-     - User data: ratings, reviews, user metadata
-   - Data repository: Distributed storage system for efficient access
-   - Regular snapshots for reproducibility
+2. **Feature Enriching Pipeline for DCN Training**:
 
-3. **ETL Pipeline**:
+   - [dcn-etl](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/dcn_etl) builds on the ALS model outputs to prepare training data for the Deep & Cross Network (DCN)
+   - Extracts latent vectors from the trained ALS model and merges them with raw data:
+     - Fetches user and item embeddings from object storage
+     - Joins these embeddings with the original review dataset
+     - Creates enriched feature vectors combining ratings with learned latent factors
+   - Implements time-based train/validation/production splits:
+     - Uses chronological ordering to simulate real-world prediction scenarios
+     - Ensures newer data is used for validation and production testing
+   - Memory-efficient processing with DataFrame chunking for handling large datasets
+   - Full containerization with managed dependencies ([docker-compose-dcn-etl.yaml](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/dcn_etl/docker-compose-dcn-etl.yaml))
+   - Orchestrated through a single command with the [etl.sh](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/dcn_etl/etl.sh) script
 
-   - Data Ingestion:
-     - Yelp Dataset import pipeline
-     - SBERT Transformer for text processing using Ray
-     - Distributed processing for scalability
-   - Transformation:
-     - User profile generation (rating vectors, embeddings)
-     - Restaurant profile creation (business attributes, embeddings)
-     - Data validation and quality checks
-   - Loading:
-     - Structured storage (on Chameleon) for model training
-     - Feature store (on Chameleon) for online serving
+3. **Interactive Data Quality Dashboard**:
 
-4. **Online Data Pipeline**:
+   - [als-dashboard](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-dashboard) provides a Streamlit-based interactive dashboard
+   - Real-time data quality monitoring through visualizations of distributions, outliers, missing values
+   - Automatic data loading from Chameleon Object Storage using rclone
+   - Metrics for data completeness, consistency, and statistical properties
+   - Docker containerization for easy deployment ([Dockerfile](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-dashboard/Dockerfile))
 
-   - Real-time data processing:
-     - User interaction streaming pipeline
-     - Real-time feature computation after storing data on redis(or an alternative for fast access)
-   - Data Simulation:
-     - Synthetic user interaction generator (script) based on user patterns
+4. **Persistent Storage Management**:
 
-5. **Monitoring and Quality**:
-   - Interactive dashboard for data pipeline metrics
-   - Automated data quality validation
+   - Multiple [docker-compose](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/docker-compose-raw-data.yaml) configurations for different data storage needs
+   - Automated data extraction and uploads to object storage
+   - Structured organization of raw, intermediate, and processed data
+   - Mount point management for volume persistence between runs
+
+5. **Orchestration and Automation**:
+   - Shell scripts for coordinating pipeline components ([etl.sh](https://github.com/srush-shah/restaurant-recommender/tree/main/data-pipeline/als-etl/etl.sh))
+   - Monitoring utilities for tracking processing progress
+   - Resource management to prevent memory overflow during large data processing
+   - Error handling and logging systems for debugging and audit trails
+
+The pipeline has been designed with scale, efficiency, and reproducibility in mind, aiming for integration with our model training and serving components, while ensuring data quality throughout the recommendation system lifecycle.
 
 #### Continuous X
 

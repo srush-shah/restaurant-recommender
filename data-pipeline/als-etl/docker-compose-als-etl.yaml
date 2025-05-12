@@ -94,7 +94,7 @@ services:
         mkdir -p /staging/als
 
         echo "Uploading contents of 'als' folder into object store at 'als/'..."
-        rclone copy /staging/als chi_tacc:$RCLONE_CONTAINER/als_2 \
+        rclone copy /staging/als chi_tacc:$RCLONE_CONTAINER/als \
           --progress \
           --transfers=32 \
           --checkers=16 \
@@ -102,4 +102,4 @@ services:
           --fast-list
 
         echo "Listing contents of chi_tacc:$RCLONE_CONTAINER/als:"
-        rclone ls chi_tacc:$RCLONE_CONTAINER/als_2
+        rclone ls chi_tacc:$RCLONE_CONTAINER/als
