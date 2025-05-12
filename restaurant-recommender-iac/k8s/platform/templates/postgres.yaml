@@ -3,7 +3,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
-  namespace: gourmetgram-platform
+  namespace: recommendation-platform
 spec:
   accessModes:
     - ReadWriteOnce
@@ -15,7 +15,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
-  namespace: gourmetgram-platform
+  namespace: recommendation-platform
 spec:
   replicas: 1
   selector:
@@ -50,7 +50,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: gourmetgram-platform
+  namespace: recommendation-platform
 spec:
   selector:
     app: postgres

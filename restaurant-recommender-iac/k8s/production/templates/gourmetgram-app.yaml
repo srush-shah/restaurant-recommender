@@ -2,20 +2,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gourmetgram-app
-  namespace: gourmetgram-production
+  name: recommendation-app
+  namespace: recommendation-production
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: gourmetgram-app
+      app: recommendation-app
   template:
     metadata:
       labels:
-        app: gourmetgram-app
+        app: recommendation-app
     spec:
       containers:
-        - name: gourmetgram-app
+        - name: recommendation-app
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           ports:
             - containerPort: 8000
@@ -26,11 +26,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: gourmetgram-app
-  namespace: gourmetgram-production
+  name: recommendation-app
+  namespace: recommendation-production
 spec:
   selector:
-    app: gourmetgram-app
+    app: recommendation-app
   ports:
     - port: {{ .Values.service.port }}
       targetPort: 8000

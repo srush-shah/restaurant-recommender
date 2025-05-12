@@ -1,5 +1,5 @@
 apiVersion: v2
-name: gourmetgram-canary
+name: recommendation-canary
 version: 1.0.0
-description: Gourmetgram Canary Deployment
+description: recommendation Canary Deployment
 

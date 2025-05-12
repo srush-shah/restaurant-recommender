@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: registry.kube-system.svc.cluster.local:5000/gourmetgram-app
+  repository: registry.kube-system.svc.cluster.local:5000/recommendation-app
   tag: staging-1.0.0
 
 service:

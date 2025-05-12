@@ -4,7 +4,7 @@
   become: yes
   vars:
     argocd_username: "admin"
-    repo_path: "https://github.com/teaching-on-testbeds/gourmetgram-iac.git"
+    repo_path: "https://github.com/srush-shah/restaurant-recommender/restaurant-recommender-iac.git"
     app_name: "gourmetgram-platform"
     app_path: "k8s/platform"
     minio_access_key: "your-access-key"

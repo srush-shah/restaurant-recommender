@@ -1,10 +1,10 @@
 ---
-- name: Deploy Gourmetgram Staging via ArgoCD & Helm
+- name: Deploy recommendation Staging via ArgoCD & Helm
   hosts: node1
   become: yes
   vars:
-    app_name: gourmetgram-staging
-    repo_url: https://github.com/teaching-on-testbeds/gourmetgram-iac.git
+    app_name: recommendation-staging
+    repo_url: https://github.com/srush-shah/restaurant-recommender/restaurant-recommender-iac.git
     app_path: k8s/staging
     argocd_namespace: argocd
 
@@ -31,8 +31,8 @@
       set_fact:
         external_ip: "{{ ansible_all_ipv4_addresses | select('match', '^10\\.56\\..*') | list | first }}"
 
-    - name: Create gourmetgram-staging namespace if missing
-      command: kubectl create namespace gourmetgram-staging
+    - name: Create recommendation-staging namespace if missing
+      command: kubectl create namespace recommendation-staging
       register: ns_create
       failed_when: ns_create.rc != 0 and "AlreadyExists" not in ns_create.stderr
       changed_when: "'created' in ns_create.stdout"
