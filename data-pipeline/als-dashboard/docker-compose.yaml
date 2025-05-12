@@ -8,13 +8,16 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./.streamlit:/app/.streamlit
       - ~/.config/rclone:/root/.config/rclone:ro
+      - ./logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1
+      - DEBUG=1
+      - RCLONE_VERBOSE=2
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s
       timeout: 10s
-      retries: 3 
+      retries: 3
+    command: ["/bin/bash", "-c", "mkdir -p /app/logs && /app/start.sh 2>&1 | tee /app/logs/container.log"] 

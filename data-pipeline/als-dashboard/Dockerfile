@@ -23,7 +23,24 @@ COPY . .
 # Create the .streamlit directory
 RUN mkdir -p .streamlit
 
+# Create startup script to verify rclone config
+RUN echo '#!/bin/bash\n\
+    echo "Verifying rclone configuration..."\n\
+    if [ -f /root/.config/rclone/rclone.conf ]; then\n\
+    echo "Rclone config found:"\n\
+    cat /root/.config/rclone/rclone.conf\n\
+    echo "Testing rclone connection..."\n\
+    rclone listremotes\n\
+    else\n\
+    echo "WARNING: No rclone configuration found!"\n\
+    fi\n\
+    \n\
+    # Start Streamlit\n\
+    streamlit run app.py --server.port=8501 --server.address=0.0.0.0\n\
+    ' > /app/start.sh \
+    && chmod +x /app/start.sh
+
 EXPOSE 8501
 
 # Command to run the application
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"] 
+CMD ["/app/start.sh"] 
