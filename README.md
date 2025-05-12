@@ -10,7 +10,10 @@ judged on? (Note that the "service" does not have to be for general users; you c
 propose a system for a science problem, for example.)
 -->
 
-The current status quo for restaurant recommendations relies heavily on content based filtering methods. Creating more personalized recommendations removes the hassle of trying to find a place to eat and reduces time spent endlessly scrolling through food apps like Yelp, Google Maps, and Beli. We propose our hybrid model recommendation system to these companies in order to drive up user utility with personalized recommendations. With more effective recommendations, we expect the volume of user reviews to increase, as well as smaller restaurants being able to compete more with established and popular restaurants.
+The current status quo for restaurant recommendations relies heavily on content-based filtering methods. Creating more personalized recommendations removes the hassle of finding a place to eat and reduces time spent endlessly scrolling through food apps like Yelp, Google Maps, and Beli. With Yelp publishing their open dataset, we saw this as an opportunity to improve on their current recommendation system and present our own hybrid model recommendation system to drive up user utility of the Yelp app through more personalized recommendations. 
+
+Yelp's open dataset has a rich combination of business attributes (like categories, price range, and location), user data (including review history and social connections), and millions of textual reviews and explicit star ratings. The wide range of features makes for perfect data to train a neural network on. Additionally, the millions of reviews are the ideal input for a collaborative filtering matrix factorization model like ALS. All in all, Yelp’s open dataset contains 9.6GB of JSON data. With this dataset, we were able to train a lightweight 100kb MLP model, as well as around 100MB worth of latent user and restaurant vectors from the ALS model. 
+
 
 ### Contributors
 
@@ -31,7 +34,7 @@ link to their contributions in all repos here. -->
 
 ### System diagram
 
-<img src="./assets/architecture_v1.png"/>
+<img src="./assets/architecture_v3.png"/>
 
 <!-- Overall digram of system. Doesn't need polish, does need to show all the pieces.
 Must include: all the hardware, all the containers/software platforms, all the models,
@@ -48,103 +51,64 @@ conditions under which it may be used. -->
 | Yelp Open Dataset | The Yelp Open Dataset is a subset of Yelp data that is intended for educational use. It provides real-world data related to businesses including reviews, photos, check-ins, and attributes like hours, parking availability, and ambience.                                                                              | [See detailed ToS here](https://github.com/srush-shah/restaurant-recommender/tree/main/assets/yelp_tos.pdf) |
 | SBERT Transformer | Hugging Face used the pretrained microsoft/mpnet-base model and fine-tuned in on a 1B sentence pairs dataset. They used a contrastive learning objective: given a sentence from the pair, the model should predict which out of a set of randomly sampled other sentences, was actually paired with it in their dataset. | [Hugging Face ToS](https://huggingface.co/terms-of-service)                                                 |
 
-### Summary of infrastructure requirements
+#### Continuous X
 
-## Summary of Infrastructure Requirements (Chameleon)
+We are using imperative style (python-chi) to deploy our infrastructure. The code lives in GIT. I have used a combination of tools python-chi, ansible, ArgoCD, Argo Workflows, Helm.
 
-| Requirement                         | How many / When                                      | Justification                                                                                        |
-| ----------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **m1.medium VMs**                   | 3 for entire project duration                        | Used for ETL jobs, FastAPI server, Redis, and Ray head node                                          |
-| **gpu_a100 or gpu_mi100**           | 4-hour block twice a week                            | Heavy model training (DCN, ALS, SBERT embedding) on large Yelp data                                  |
-| **Floating IPs**                    | 1 static IP for entire project duration, 1 on-demand | One for public-facing FastAPI; additional one for staging/monitoring access during canary tests      |
-| **Block Storage (100GB)**           | Persistent volume throughout project                 | Store processed Yelp data, user/restaurant embeddings, cached features                               |
-| **Object Storage (S3-like)**        | Persistent throughout project                        | Store MLflow artifacts, model checkpoints, and logs                                                  |
-| **Docker Registry Access**          | Continuous                                           | For storing/retrieving containerized services (ETL, training, serving)                               |
-| **gpu_small VMs (optional)**        | 2 hours weekly (as-needed backup to big GPU)         | Light GPU experimentation or embedding refreshes if gpu_mi100 unavailable                            |
-| **Kubernetes Cluster (bare-metal)** | 1 cluster with 3 nodes (2 CPU + 1 GPU)               | To deploy microservices (ETL API, model training jobs, model serving) and support canary deployments |
-| **Internal Network**                | Throughout project                                   | For communication between Redis, model server, dashboard, MLflow tracker, etc.                       |
 
-### Rough break down
+Infrastructure as code :
 
-## Component-to-Node Mapping
+https://github.com/srush-shah/restaurant-recommender/tree/main/infra/infra_final
 
-| Component                              | Needs?             | Recommended Node Type                                |
-| -------------------------------------- | ------------------ | ---------------------------------------------------- |
-| **ETL (SBERT embeddings)**             | CPU (GPU optional) | m1.medium (or gpu_small if SBERT is GPU-accelerated) |
-| **Model Training (ALS/DCN)**           | GPU-intensive      | gpu_mi100 or gpu_a100                                |
-| **Model Serving (FastAPI + RayServe)** | CPU                | m1.medium                                            |
-| **Redis (caching)**                    | CPU                | m1.small or m1.medium                                |
-| **MLflow (tracking + registry)**       | CPU                | m1.small                                             |
-| **Dashboard (Grafana/Prometheus)**     | CPU                | m1.small                                             |
-| **Canary / Staging Env**               | CPU                | m1.medium (on-demand/scheduled)                      |
-| **Load Testing (Optional)**            | CPU                | Ephemeral VM (as-needed only)                        |
+We first start with running:
+ setting_up_gpu_with_mlflow_mnio.ipynb : 
+This notebook provisions a bare-metal GPU instance on Chameleon Cloud using a reserved lease, attaches a floating IP, and installs Docker with NVIDIA Container Toolkit for GPU access. It configures and runs a JupyterLab container (torchnb) and an MLflow tracking container (mlflow), both with GPU support. Additionally, it mounts Chameleon object storage via rclone for persistent data access inside the containers.
 
-## VM Breakdown
+vm_resources_deployment.ipynb
+The notebook automates provisioning of a KVM virtual machine on Chameleon Cloud (KVM@TACC) with a medium flavor and Ubuntu 24.04 image. It attaches a floating IP, sets up custom security groups for key services (SSH, MLFlow, Jupyter, etc.), installs Docker, and mounts object storage using rclone. Finally, it starts essential services like Grafana, Prometheus, and JupyterLab inside containers for end-to-end monitoring and experimentation.
 
-| VM Purpose                    | VM Type   | Count               | Notes                                           |
-| ----------------------------- | --------- | ------------------- | ----------------------------------------------- |
-| **Ray Cluster Head Node**     | m1.medium | 1                   | Controls Ray tasks, does some orchestration     |
-| **Ray Worker Node (CPU)**     | m1.medium | 1–2                 | For ETL, inference, lightweight model serving   |
-| **GPU Training Node**         | gpu_mi100 | On demand (2x/week) | For SBERT/DCN/ALS training (can be preemptible) |
-| **Redis & MLflow**            | m1.small  | 1                   | Can be co-hosted if needed                      |
-| **Canary/Testing Node**       | m1.medium | 1 (as needed)       | Used only during staged testing                 |
-| **Dashboard Node (optional)** | m1.small  | 1                   | Optional unless you're monitoring live stats    |
 
-Note: It is subject to change as we implement.
 
-### Detailed design plan
+Cloud-native:
+https://github.com/srush-shah/restaurant-recommender/tree/main/ml_train_docker
 
-<!-- In each section, you should describe (1) your strategy, (2) the relevant parts of the
-diagram, (3) justification for your strategy, (4) relate back to lecture material,
-(5) include specific numbers. -->
+https://github.com/srush-shah/restaurant-recommender/tree/main/infra/updated_scripts/data_infra
 
-#### Model training and training platforms
+We followed a cloud-native, immutable infrastructure approach by avoiding manual "clickops" and ensuring all provisioning and configuration is done through version-controlled code. The repository includes multiple purpose-built Dockerfiles and Docker Compose manifests (for Airflow, MLflow, Ray, Jupyter, MinIO, etc.), enabling reproducible deployments across both CPU and GPU environments (CUDA and ROCm). We have made sure that the object storage and block storage are also made through code. All infrastructure components are containerized and declaratively managed, promoting scalability and portability.
 
-**Unit 4 Requirements:**
+CI/CD and continuous Training:
 
-1. **Train and Re-train**:
+infra/infra_final/retrain_jobs.sh
+infra/DAGs/staging_flow_1.py
 
-   - Candidate generation
-     - Train an Alternating Least Squares (ALS) model on a user-restaurant interaction matrix
-     - Retrain as new users with enough ratings get added to the matrix, existing users give more ratings, new restaurants get new ratings
-   - Ranking the candidates
-     - Train a Deep and Cross Network (DCN) on user and restaurants features to capture the interaction effects between the features and generate more accurate ratings.
-     - Can play with penalties to reward diversity and serendipity in recommendations
-   - Continuous retraining pipeline using production feedback data
-   - Model artifacts stored in versioned storage for reproducibility
+To enable automated model retraining, we implemented a CI/CD loop using a hybrid of Airflow DAGs and Ray Train jobs. The DAG (staging_flow_1.py) triggers every two weeks to sequentially submit als_train.py and mlp_train.py training jobs to a Ray cluster. A complementary shell script (retrain_jobs.sh) provides a manual fallback for ad hoc retraining. While the final model wasn’t ready until late, this framework lays the groundwork for continuous learning, and can be improved further with more advanced feedback and evaluation strategies.
 
-2. **Modeling Choices**:
-   - ALS for sparse user-restaurant interaction matrix for candidate generation. This reduces the number of potential restaurant recommendations from hundreds of thousands to just hundreds.
-   - DCN for handling complex feature interactions between user and restaurant profiles to generate a more accurate ranking/order of recommendations.
 
-**Unit 5 Requirements:**
 
-1. **Experiment Tracking**:
+Staged deployment:
 
-   - MLflow deployment on Chameleon for experiment management
-   - Tracking of model metrics, hyperparameters, and artifacts
-   - Automated logging of training metrics and model performance
-   - Version control of model artifacts and configurations
+infra/infra_final/deploying_canary_staging_prod.ipynb
 
-2. **Training Job Scheduling**:
-   - Ray cluster deployment for distributed training of DCN
-   - GPU resource management (NVIDIA and AMD)
-   - Automated job scheduling and resource allocation
-   - Integration with continuous training pipeline
+Restaurant-recommender-iac
 
-**Unit 5 Difficulty Points:**
 
-1. **Ray Train Implementation**:
+infra/DAGs/staging_flow_1.py
 
-   - Fault-tolerant training with automatic checkpointing
-   - Remote artifact storage integration
-   - Distributed training across GPU nodes for DCN
-   - Automatic failover and recovery
+This was one of the most challenging parts of the project. I tried to follow the lab scripts and adapted them to build a complete ML lifecycle pipeline using Ansible and ArgoCD. I created a Python- file based that triggers training, builds a container, and deploys it to staging, canary, and production environments. Everything is managed through code using ArgoCD and infrastructure-as-code files from the restaurant-recommender-iac repo. I also explored an alternative approach Airflow DAG  by exposing 3 different ports on a single container and using Airflow to test and promote across stages. It still has room for improvement, but it sets up a working feedback and deployment loop.
 
-2. **Hyperparameter Tuning**:
-   - Ray Tune integration for automated optimization of both models
-   - Multi-objective optimization for latency-accuracy trade-offs
-   - Parallel trial execution across available GPUs
+
+Finally I added scripts to remove all the resources.
+vm_delete_resources.ipynb
+gpu_delete_resources.ipynb
+
+#### Model Training
+
+We chose to split this restaurant recommendation problem into two parts: candidate generation and candidate ranking. The main goal of candidate generation is to shrink the massive pool of potential candidates to a more manageable size to perform more fine-tuned rating predictions on. With the size of reviews.json, we were able to build a global utility matrix to train a global ALS model covering users and restaurants across the United States. We chose to train an ALS model since it can effectively handle large and sparse datasets, like the utility matrix we constructed with user and restaurant reviews, making it scalable. This matrix factorization technique also learns latent factors representing user and item preferences, allowing for fairly accurate prediction of user-item, or in our case, user-restaurant interaction.
+
+Once the user and restaurant latent factors are learned, a user can choose a city that they are in, and then the recommendation system begins. The dot product between that user’s latent vector and every other restaurant in that city is calculated, resulting in a predicted rating for every possible restaurant. We then take the top 100 restaurants for re-ranking. Since this model doesn’t take into account any of the content-based features from that restaurant, our next step was to use a model that does take into account the other rich features in the dataset to more accurately predict a user’s rating for that restaurant. We chose to train a simple MLP since it can handle a diverse range of input features, and our input data would have both categorical and non-categorical data. We would one hot encode the restaurant’s categorical features, while also including the latent vectors from the ALS model, as well text review embeddings.
+
+We gathered these review text embeddings by running the text review through a Hugging Face BERT model, specifically bert-small model due to the amount of text data we had to process, as well as our limited GPU access. For each restaurant and user, we would get all their respective review embeddings and create an aggregate or averaged embedding which can now be used as another input feature for the MLP. 
+
 
 #### Model serving and monitoring platforms
 
