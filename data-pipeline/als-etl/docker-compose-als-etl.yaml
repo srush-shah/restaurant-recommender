@@ -37,27 +37,31 @@ services:
     volumes:
       - ./data:/staging
     working_dir: /app
+    restart: "no"
     environment:
       - PYTHONUNBUFFERED=1
       # Memory management
       - PANDAS_MAX_ROWS=1000000000
-      - NUMEXPR_MAX_THREADS=8
-      - PANDAS_CHUNKSIZE=100000
+      - NUMEXPR_MAX_THREADS=4
+      - PANDAS_CHUNKSIZE=50000  # Reduced chunk size for better memory management
       # Add memory management for Python
       - PYTHONMALLOC=malloc
       - MALLOC_TRIM_THRESHOLD_=100000
       # Garbage collection settings
       - PYTHONGC=1
+      # Debug settings
+      - PYTHONDEBUG=1
+      - PYTHONVERBOSE=1
     deploy:
       resources:
         limits:
-          memory: 24G
-          cpus: '8.0'
+          memory: 20G  # Reduced from 24G
+          cpus: '3.5'
         reservations:
-          memory: 16G
-          cpus: '4.0'
-    # Enable access to CPU cores
-    cpuset: '0-7'
+          memory: 12G  # Reduced from 16G
+          cpus: '2.0'
+    # Enable access to CPU cores - adjust for 4 CPUs
+    cpuset: '0-3'
     # Add ulimits for better memory handling
     ulimits:
       memlock:
@@ -66,7 +70,7 @@ services:
       nofile:
         soft: 65536
         hard: 65536
-    command: ["python", "scripts/transform.py"]
+    command: ["python", "-u", "scripts/transform.py"]  # Added -u for unbuffered output
 
   load:
     image: rclone/rclone:latest
@@ -90,7 +94,7 @@ services:
         mkdir -p /staging/als
 
         echo "Uploading contents of 'als' folder into object store at 'als/'..."
-        rclone copy /staging/als chi_tacc:$RCLONE_CONTAINER/als \
+        rclone copy /staging/als chi_tacc:$RCLONE_CONTAINER/als_2 \
           --progress \
           --transfers=32 \
           --checkers=16 \
@@ -98,4 +102,4 @@ services:
           --fast-list
 
         echo "Listing contents of chi_tacc:$RCLONE_CONTAINER/als:"
-        rclone ls chi_tacc:$RCLONE_CONTAINER/als
+        rclone ls chi_tacc:$RCLONE_CONTAINER/als_2
